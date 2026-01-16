@@ -23,8 +23,6 @@ import ShareModal from './ShareModal';
 import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
 import { getRectOfNodes, getTransformForBounds } from 'reactflow';
-import * as htmlToImage from 'html-to-image';
-import { getRectOfNodes, getTransformForBounds } from 'reactflow';
 
 const nodeTypes = {
   mindMapNode: CustomNode,
