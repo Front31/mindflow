@@ -92,13 +92,15 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const [isDark, setIsDark] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showColor, setShowColor] = useState(false);
+
+  // NEW: edge style toggle (default for NEW edges)
   const [edgeDashed, setEdgeDashed] = useState(false);
 
   // Selection state
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
 
-  // Store (single source of truth)
+  // Store
   const nodes = useMindFlowStore((s) => s.nodes) as any[];
   const edges = useMindFlowStore((s) => s.edges) as Edge[];
   const addNode = useMindFlowStore((s) => s.addNode);
@@ -111,7 +113,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const applyingRemoteRef = useRef<boolean>(false);
   const saveTimerRef = useRef<any>(null);
 
-  // Clipboard
+  // Clipboard (tab fallback) + OS clipboard cross-tab
   const clipboardRef = useRef<{ nodes: any[]; edges: Edge[] } | null>(null);
   const pasteOffsetRef = useRef(0);
 
@@ -158,7 +160,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     };
   }, [roomId, setNodes, setEdges]);
 
-  // Poll for remote updates
+  // Poll
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -181,7 +183,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     return () => clearInterval(t);
   }, [roomId, setNodes, setEdges]);
 
-  // Debounced save to DB
+  // Debounced save
   useEffect(() => {
     if (applyingRemoteRef.current) return;
 
@@ -209,11 +211,13 @@ function CanvasContent({ roomId }: { roomId: string }) {
     (changes: any) => setNodes(applyNodeChanges(changes, nodes)),
     [nodes, setNodes]
   );
+
   const onEdgesChange = useCallback(
     (changes: any) => setEdges(applyEdgeChanges(changes, edges)),
     [edges, setEdges]
   );
 
+  // NEW edges use current edgeDashed preference
   const onConnect = useCallback(
     (params: Connection) => {
       const newEdge: Edge = {
@@ -223,7 +227,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         animated: false,
         style: edgeDashed ? { strokeWidth: 2, strokeDasharray: '6 6' } : { strokeWidth: 2 },
       } as Edge;
-  
+
       setEdges(addEdgeRF(newEdge, edges));
     },
     [edges, setEdges, edgeDashed]
@@ -278,14 +282,17 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setSelectedEdgeIds([]);
   }, [canDelete, edges, nodes, selectedEdgeIds, selectedNodeIds, setEdges, setNodes]);
 
-  // Copy/Paste
+  // Copy (tab + OS clipboard)
   const handleCopy = useCallback(async () => {
     const selNodes = nodes.filter((n) => selectedNodeIds.includes(n.id));
     if (selNodes.length === 0) return;
-  
+
     const idSet = new Set(selNodes.map((n) => n.id));
     const selEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
-  
+
+    clipboardRef.current = { nodes: selNodes, edges: selEdges };
+    pasteOffsetRef.current = 0;
+
     const payload = {
       app: 'mindflow',
       version: 1,
@@ -293,27 +300,22 @@ function CanvasContent({ roomId }: { roomId: string }) {
       state: { nodes: selNodes, edges: selEdges },
       copiedAt: new Date().toISOString(),
     };
-  
-    // local tab clipboard (fallback)
-    clipboardRef.current = { nodes: selNodes, edges: selEdges };
-    pasteOffsetRef.current = 0;
-  
-    // cross-tab clipboard
+
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload));
     } catch {
-      // ignore (permission/browser)
+      // ignore (permissions)
     }
   }, [nodes, edges, selectedNodeIds]);
 
+  // Paste (OS clipboard cross-tab first, fallback to in-tab clipboard)
   const handlePaste = useCallback(async () => {
-    // 1) try OS clipboard first (cross-tab)
     let clip: { nodes: any[]; edges: Edge[] } | null = null;
-  
+
     try {
       const text = await navigator.clipboard.readText();
       const json = JSON.parse(text);
-  
+
       if (json?.app === 'mindflow' && json?.type === 'selection' && json?.state) {
         const newNodes = json.state.nodes;
         const newEdges = json.state.edges;
@@ -324,18 +326,17 @@ function CanvasContent({ roomId }: { roomId: string }) {
     } catch {
       // ignore
     }
-  
-    // 2) fallback to in-tab clipboard
+
     if (!clip) clip = clipboardRef.current;
     if (!clip) return;
-  
+
     pasteOffsetRef.current += 40;
     const off = pasteOffsetRef.current;
-  
+
     const idMap = new Map<string, string>();
     const now = Date.now();
     const rand = () => Math.random().toString(16).slice(2);
-  
+
     const newNodes = clip.nodes.map((n) => {
       const newId = `${n.id}-copy-${now}-${rand()}`;
       idMap.set(n.id, newId);
@@ -346,7 +347,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         selected: true,
       };
     });
-  
+
     const newEdges: Edge[] = clip.edges.map((e) => ({
       ...e,
       id: `e${idMap.get(e.source)}-${e.sourceHandle ?? 's'}-${idMap.get(e.target)}-${e.targetHandle ?? 't'}-${now}-${rand()}`,
@@ -354,16 +355,15 @@ function CanvasContent({ roomId }: { roomId: string }) {
       target: idMap.get(e.target)!,
       selected: true,
     }));
-  
+
     const clearedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const clearedEdges = edges.map((e) => ({ ...e, selected: false }));
-  
+
     setNodes([...clearedNodes, ...newNodes]);
     setEdges([...clearedEdges, ...newEdges]);
   }, [nodes, edges, setNodes, setEdges]);
 
-
-  // Global key handling
+  // Global keys: delete + copy/paste
   const deleteSelectedRef = useRef<() => void>(() => {});
   useEffect(() => {
     deleteSelectedRef.current = handleDeleteSelected;
@@ -377,6 +377,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         (el.tagName === 'INPUT' ||
           el.tagName === 'TEXTAREA' ||
           (el as any).isContentEditable);
+
       if (isTyping) return;
 
       const isMac = navigator.platform.toLowerCase().includes('mac');
@@ -479,12 +480,9 @@ function CanvasContent({ roomId }: { roomId: string }) {
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: false,
-          style: {
-            stroke: isDark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.25)',
-            strokeWidth: 2,
-            strokeDasharray: '4 6',
-          },
+          style: { strokeWidth: 2 },
         }}
+        // Interaction model
         panOnDrag={[2]}
         selectionOnDrag
         selectionMode={SelectionMode.Partial}
@@ -492,6 +490,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         elementsSelectable
         edgesFocusable
         edgesUpdatable={false}
+        connectionRadius={40}
         onSelectionChange={({ nodes: selNodes, edges: selEdges }) => {
           const nextNodeIds = (selNodes ?? []).map((n) => n.id).sort();
           const nextEdgeIds = (selEdges ?? []).map((e) => e.id).sort();
@@ -506,6 +505,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
           nodeColor={(node) => {
             const hex = (node as any).data?.colorHex;
             if (hex) return hex;
+
             const color = (node as any).data?.color;
             const colors: Record<string, string> = {
               blue: '#3b82f6',
@@ -530,6 +530,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
         onDownloadFile={handleDownloadFile}
         onUploadFile={handleUploadFileClick}
         onColor={() => setShowColor(true)}
+        edgeDashed={edgeDashed}
+        onToggleDashed={() => setEdgeDashed((v) => !v)}
         onToggleTheme={handleToggleTheme}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
