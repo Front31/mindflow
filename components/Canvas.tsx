@@ -92,6 +92,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const [isDark, setIsDark] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showColor, setShowColor] = useState(false);
+  const [edgeDashed, setEdgeDashed] = useState(false);
 
   // Selection state
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -219,12 +220,13 @@ function CanvasContent({ roomId }: { roomId: string }) {
         ...params,
         id: `e${params.source}-${params.sourceHandle ?? 's'}-${params.target}-${params.targetHandle ?? 't'}-${Date.now()}`,
         type: 'smoothstep',
-        animated: true,
+        animated: false,
+        style: edgeDashed ? { strokeWidth: 2, strokeDasharray: '6 6' } : { strokeWidth: 2 },
       } as Edge;
-
+  
       setEdges(addEdgeRF(newEdge, edges));
     },
-    [edges, setEdges]
+    [edges, setEdges, edgeDashed]
   );
 
   // Toolbar actions
@@ -277,27 +279,63 @@ function CanvasContent({ roomId }: { roomId: string }) {
   }, [canDelete, edges, nodes, selectedEdgeIds, selectedNodeIds, setEdges, setNodes]);
 
   // Copy/Paste
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     const selNodes = nodes.filter((n) => selectedNodeIds.includes(n.id));
     if (selNodes.length === 0) return;
-
+  
     const idSet = new Set(selNodes.map((n) => n.id));
     const selEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
+  
+    const payload = {
+      app: 'mindflow',
+      version: 1,
+      type: 'selection',
+      state: { nodes: selNodes, edges: selEdges },
+      copiedAt: new Date().toISOString(),
+    };
+  
+    // local tab clipboard (fallback)
     clipboardRef.current = { nodes: selNodes, edges: selEdges };
     pasteOffsetRef.current = 0;
+  
+    // cross-tab clipboard
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload));
+    } catch {
+      // ignore (permission/browser)
+    }
   }, [nodes, edges, selectedNodeIds]);
 
-  const handlePaste = useCallback(() => {
-    const clip = clipboardRef.current;
+  const handlePaste = useCallback(async () => {
+    // 1) try OS clipboard first (cross-tab)
+    let clip: { nodes: any[]; edges: Edge[] } | null = null;
+  
+    try {
+      const text = await navigator.clipboard.readText();
+      const json = JSON.parse(text);
+  
+      if (json?.app === 'mindflow' && json?.type === 'selection' && json?.state) {
+        const newNodes = json.state.nodes;
+        const newEdges = json.state.edges;
+        if (Array.isArray(newNodes) && Array.isArray(newEdges)) {
+          clip = { nodes: newNodes, edges: newEdges };
+        }
+      }
+    } catch {
+      // ignore
+    }
+  
+    // 2) fallback to in-tab clipboard
+    if (!clip) clip = clipboardRef.current;
     if (!clip) return;
-
+  
     pasteOffsetRef.current += 40;
     const off = pasteOffsetRef.current;
-
+  
     const idMap = new Map<string, string>();
     const now = Date.now();
     const rand = () => Math.random().toString(16).slice(2);
-
+  
     const newNodes = clip.nodes.map((n) => {
       const newId = `${n.id}-copy-${now}-${rand()}`;
       idMap.set(n.id, newId);
@@ -308,7 +346,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         selected: true,
       };
     });
-
+  
     const newEdges: Edge[] = clip.edges.map((e) => ({
       ...e,
       id: `e${idMap.get(e.source)}-${e.sourceHandle ?? 's'}-${idMap.get(e.target)}-${e.targetHandle ?? 't'}-${now}-${rand()}`,
@@ -316,13 +354,14 @@ function CanvasContent({ roomId }: { roomId: string }) {
       target: idMap.get(e.target)!,
       selected: true,
     }));
-
+  
     const clearedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const clearedEdges = edges.map((e) => ({ ...e, selected: false }));
-
+  
     setNodes([...clearedNodes, ...newNodes]);
     setEdges([...clearedEdges, ...newEdges]);
   }, [nodes, edges, setNodes, setEdges]);
+
 
   // Global key handling
   const deleteSelectedRef = useRef<() => void>(() => {});
@@ -439,7 +478,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         maxZoom={2}
         defaultEdgeOptions={{
           type: 'smoothstep',
-          animated: true,
+          animated: false,
           style: {
             stroke: isDark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.25)',
             strokeWidth: 2,
