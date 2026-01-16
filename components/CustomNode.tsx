@@ -2,6 +2,8 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
+import { Paintbrush } from 'lucide-react';
+
 import { MindMapNode } from '@/types';
 import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
@@ -9,6 +11,7 @@ import { useMindFlowStore } from '@/lib/store';
 function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label);
+  const [showColors, setShowColors] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -17,7 +20,8 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const updateNode = useMindFlowStore((s) => s.updateNode);
   const setNodes = useMindFlowStore((s) => s.setNodes);
 
-  const colorStyle = nodeColors[data.color];
+  const colorKey = data.color ?? 'blue';
+  const colorStyle = nodeColors[colorKey];
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -37,7 +41,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Enter saves (Shift+Enter = newline)
+      // Enter saves, Shift+Enter creates newline
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleBlur();
@@ -51,11 +55,11 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   );
 
   // ===== Connection points =====
-  // visible dot: small, same style everywhere
+  // visible dot: small, consistent style
   const visibleHandleClass =
     '!w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45';
 
-  // invisible hitbox: large, reliable connect
+  // invisible hitbox: big, reliable connect
   const hitboxHandleClass =
     '!w-7 !h-7 !rounded-full !border-0 !bg-transparent !shadow-none';
 
@@ -143,13 +147,21 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [id, setNodes]
   );
 
+  // Color palette options
+  const colorKeys: Array<NonNullable<MindMapNode['data']['color']>> = [
+    'blue',
+    'purple',
+    'pink',
+    'green',
+    'orange',
+    'gray',
+  ];
+
   /**
    * One-dot-per-side design:
-   * - Each side has TWO invisible hitboxes: target + source
-   * - Hitboxes are offset slightly (48%/52%) to avoid overlap bugs
-   * - One visible dot is centered (50%) and has pointer-events: none
+   * - Each side has TWO invisible hitboxes: target + source (offset slightly)
+   * - One visible dot centered and non-interactive
    */
-
   return (
     <div
       ref={containerRef}
@@ -168,8 +180,43 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
       `}
       style={{ minWidth: 220, minHeight: 84 }}
     >
+      {/* ===== Color button ===== */}
+      <button
+        className="nodrag absolute top-2 right-2 p-2 rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition"
+        title="Change color"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowColors((v) => !v);
+        }}
+      >
+        <Paintbrush size={16} />
+      </button>
+
+      {showColors && (
+        <div
+          className="nodrag absolute top-12 right-2 glass-elevated rounded-2xl p-2 flex gap-2"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {colorKeys.map((c) => (
+            <button
+              key={c}
+              className="w-5 h-5 rounded-full border border-white/40"
+              style={{ background: nodeColors[c].accent }}
+              title={c}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateNode(id, { color: c });
+                setShowColors(false);
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* ================= LEFT ================= */}
-      {/* Hitboxes (in+out), slightly offset vertically */}
       <Handle
         id="t-left"
         type="target"
@@ -184,7 +231,6 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         className={hitboxHandleClass}
         style={{ top: '52%' }}
       />
-      {/* Visible dot */}
       <Handle
         id="v-left"
         type="target"
@@ -217,7 +263,6 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
       />
 
       {/* ================= TOP ================= */}
-      {/* Hitboxes (in+out), slightly offset horizontally */}
       <Handle
         id="t-top"
         type="target"
@@ -237,7 +282,12 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         type="target"
         position={Position.Top}
         className={`${visibleHandleClass} !bg-white dark:!bg-gray-900`}
-        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
+        style={{
+          ...accentStyle,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          ...visibleNoPointer,
+        }}
       />
 
       {/* ================= BOTTOM ================= */}
@@ -260,10 +310,15 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         type="source"
         position={Position.Bottom}
         className={`${visibleHandleClass} !bg-white dark:!bg-gray-900`}
-        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
+        style={{
+          ...accentStyle,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          ...visibleNoPointer,
+        }}
       />
 
-      {/* CONTENT */}
+      {/* ===== Content ===== */}
       <div className="flex items-center justify-center gap-3 h-full">
         {data.emoji && (
           <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>
@@ -310,7 +365,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         )}
       </div>
 
-      {/* RESIZE HANDLE (bottom-right corner) */}
+      {/* ===== Resize handle ===== */}
       <button
         onPointerDown={startResize}
         title="Resize"
