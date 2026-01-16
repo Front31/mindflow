@@ -14,7 +14,7 @@ import {
   Palette,
   Moon,
   Sun,
-  Waypoints,
+  Route,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -101,7 +101,7 @@ function Toolbar({
           onClick={onOpenEdgeMenu}
           className={`${baseBtn} bg-black/5 dark:bg-white/10`}
           title={edgeTitle}>
-          <Waypoints className="w-5 h-5" />
+          <Route className="w-5 h-5" />
         </motion.button>
 
         <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
