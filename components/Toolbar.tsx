@@ -4,14 +4,15 @@ import { memo } from 'react';
 import {
   PlusCircle,
   Trash2,
-  Share2,
-  Download,
-  Moon,
-  Sun,
   ZoomIn,
   ZoomOut,
   Maximize2,
   RefreshCw,
+  Share2,
+  Download,
+  Palette,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -24,8 +25,8 @@ interface ToolbarProps {
   onClearCanvas: () => void;
   onShare: () => void;
 
-  // ✅ NEW
   onExport: () => void;
+  onColor: () => void;
 
   onToggleTheme: () => void;
   onZoomIn: () => void;
@@ -41,6 +42,7 @@ function Toolbar({
   onClearCanvas,
   onShare,
   onExport,
+  onColor,
   onToggleTheme,
   onZoomIn,
   onZoomOut,
@@ -72,7 +74,19 @@ function Toolbar({
           <PlusCircle className="w-5 h-5" />
         </motion.button>
 
-        {/* Delete Selected */}
+        {/* Color (selected nodes) */}
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
+          onClick={onColor}
+          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          title="Color (selected nodes)"
+        >
+          <Palette className="w-5 h-5" />
+        </motion.button>
+        
+        {/* Delete */}
         <motion.button
           variants={buttonVariants}
           whileHover={canDelete ? 'hover' : undefined}
@@ -84,14 +98,14 @@ function Toolbar({
               ? 'hover:bg-black/5 dark:hover:bg-white/10'
               : 'opacity-40 cursor-not-allowed'
           }`}
-          title="Delete selected (node/edge) — Del / Backspace"
+          title="Delete selected (Del / Backspace)"
         >
           <Trash2 className="w-5 h-5" />
         </motion.button>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
 
-        {/* Zoom Controls */}
+        {/* Zoom */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
@@ -139,7 +153,7 @@ function Toolbar({
           <Share2 className="w-5 h-5" />
         </motion.button>
 
-        {/* Export PNG (next to Share) */}
+        {/* Export (next to Share) */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
@@ -153,7 +167,7 @@ function Toolbar({
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
 
-        {/* Theme Toggle */}
+        {/* Theme */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
