@@ -14,10 +14,14 @@ import {
   Palette,
   Moon,
   Sun,
-  MoreHorizontal,
-  Minus,
+  Waypoints,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+export type EdgePreset = {
+  kind: 'orthogonal' | 'straight' | 'curved';
+  dashed: boolean;
+};
 
 export interface ToolbarProps {
   onAddNode: () => void;
@@ -33,8 +37,9 @@ export interface ToolbarProps {
 
   onColor: () => void;
 
-  edgeDashed: boolean;
-  onToggleDashed: () => void;
+  // ✅ edge menu
+  edgePreset: EdgePreset;
+  onOpenEdgeMenu: () => void;
 
   onToggleTheme: () => void;
   onZoomIn: () => void;
@@ -52,21 +57,20 @@ function Toolbar({
   onDownloadFile,
   onUploadFile,
   onColor,
-  edgeDashed,
-  onToggleDashed,
+  edgePreset,
+  onOpenEdgeMenu,
   onToggleTheme,
   onZoomIn,
   onZoomOut,
   onFitView,
   isDark,
 }: ToolbarProps) {
-  const buttonVariants = {
-    hover: { scale: 1.05 },
-    tap: { scale: 0.95 },
-  };
-
+  const buttonVariants = { hover: { scale: 1.05 }, tap: { scale: 0.95 } };
   const baseBtn =
     'p-3 rounded-2xl transition-colors hover:bg-black/5 dark:hover:bg-white/10';
+
+  const edgeTitle =
+    `Line: ${edgePreset.kind}${edgePreset.dashed ? ' (dashed)' : ''}`;
 
   return (
     <motion.div
@@ -76,149 +80,73 @@ function Toolbar({
       className="glass-elevated fixed top-6 left-1/2 -translate-x-1/2 z-50 rounded-3xl px-6 py-3"
     >
       <div className="flex items-center gap-2">
-        {/* Add node */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onAddNode}
-          className={baseBtn}
-          title="Add node"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onAddNode} className={baseBtn} title="Add node">
           <PlusCircle className="w-5 h-5" />
         </motion.button>
 
-        {/* Delete */}
-        <motion.button
-          variants={buttonVariants}
+        <motion.button variants={buttonVariants}
           whileHover={canDelete ? 'hover' : undefined}
           whileTap={canDelete ? 'tap' : undefined}
-          onClick={onDeleteSelected}
-          disabled={!canDelete}
-          className={`${baseBtn} ${
-            canDelete ? '' : 'opacity-40 cursor-not-allowed'
-          }`}
-          title="Delete selected (Del / Backspace)"
-        >
+          onClick={onDeleteSelected} disabled={!canDelete}
+          className={`${baseBtn} ${canDelete ? '' : 'opacity-40 cursor-not-allowed'}`}
+          title="Delete selected (Del / Backspace)">
           <Trash2 className="w-5 h-5" />
         </motion.button>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
 
-        {/* Zoom */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onZoomIn}
-          className={baseBtn}
-          title="Zoom in"
-        >
+        {/* ✅ Edge menu button */}
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onOpenEdgeMenu}
+          className={`${baseBtn} bg-black/5 dark:bg-white/10`}
+          title={edgeTitle}>
+          <Waypoints className="w-5 h-5" />
+        </motion.button>
+
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onColor} className={baseBtn} title="Color selected nodes">
+          <Palette className="w-5 h-5" />
+        </motion.button>
+        
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
+
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onZoomIn} className={baseBtn} title="Zoom in">
           <ZoomIn className="w-5 h-5" />
         </motion.button>
 
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onZoomOut}
-          className={baseBtn}
-          title="Zoom out"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onZoomOut} className={baseBtn} title="Zoom out">
           <ZoomOut className="w-5 h-5" />
         </motion.button>
 
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onFitView}
-          className={baseBtn}
-          title="Fit view"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onFitView} className={baseBtn} title="Fit view">
           <Maximize2 className="w-5 h-5" />
         </motion.button>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
 
-        {/* Color */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onColor}
-          className={baseBtn}
-          title="Color selected nodes"
-        >
-          <Palette className="w-5 h-5" />
-        </motion.button>
-
-        {/* Edge style */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onToggleDashed}
-          className={`${baseBtn} ${
-            edgeDashed ? 'bg-black/5 dark:bg-white/10' : ''
-          }`}
-          title={edgeDashed ? 'Dashed edges' : 'Solid edges'}
-        >
-          {edgeDashed ? (
-            <MoreHorizontal className="w-5 h-5" />
-          ) : (
-            <Minus className="w-5 h-5" />
-          )}
-        </motion.button>
-
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
-
-        {/* Share */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onShare}
-          className={baseBtn}
-          title="Share"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onShare} className={baseBtn} title="Share">
           <Share2 className="w-5 h-5" />
         </motion.button>
 
-        {/* Download / Upload */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onDownloadFile}
-          className={baseBtn}
-          title="Download .mindflow.json"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onDownloadFile} className={baseBtn} title="Download .mindflow.json">
           <Download className="w-5 h-5" />
         </motion.button>
 
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onUploadFile}
-          className={baseBtn}
-          title="Upload .mindflow.json"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onUploadFile} className={baseBtn} title="Upload .mindflow.json">
           <Upload className="w-5 h-5" />
         </motion.button>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
 
-        {/* Theme */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onToggleTheme}
-          className={baseBtn}
-          title="Toggle theme"
-        >
+        <motion.button variants={buttonVariants} whileHover="hover" whileTap="tap"
+          onClick={onToggleTheme} className={baseBtn} title="Toggle theme">
           {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </motion.button>
       </div>
