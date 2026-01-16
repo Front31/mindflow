@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -20,7 +20,7 @@ import * as htmlToImage from 'html-to-image';
 import CustomNode from './CustomNode';
 import Toolbar from './Toolbar';
 import ShareModal from './ShareModal';
-import ExportModal from './ExportModal';
+import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
 
 const nodeTypes = {
@@ -32,6 +32,121 @@ function sameIdList(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+/** Inline Modal: Export */
+function ExportModal({
+  isOpen,
+  onClose,
+  onExport,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onExport: (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => void;
+}) {
+  const [includeBackground, setIncludeBackground] = useState(true);
+  const [theme, setTheme] = useState<'current' | 'light' | 'dark'>('current');
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative glass-elevated rounded-3xl p-6 w-[360px]">
+        <div className="text-base font-semibold mb-4">Export PNG</div>
+
+        <label className="flex items-center gap-2 mb-4">
+          <input
+            type="checkbox"
+            checked={includeBackground}
+            onChange={(e) => setIncludeBackground(e.target.checked)}
+          />
+          <span className="text-sm">Include background</span>
+        </label>
+
+        <div className="mb-5">
+          <div className="text-sm font-medium mb-2">Theme</div>
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as any)}
+            className="w-full rounded-xl px-3 py-2 bg-white/20 dark:bg-white/10 border border-white/20 outline-none"
+          >
+            <option value="current">Current</option>
+            <option value="light">Force Light</option>
+            <option value="dark">Force Dark</option>
+          </select>
+        </div>
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            className="rounded-2xl px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-2xl px-4 py-2 text-sm bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
+            onClick={() => onExport({ includeBackground, theme })}
+          >
+            Export
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Inline Modal: Color Picker */
+function ColorModal({
+  isOpen,
+  onClose,
+  onApply,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onApply: (hex: string) => void;
+}) {
+  const [hex, setHex] = useState('#3b82f6');
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative glass-elevated rounded-3xl p-6 w-[360px]">
+        <div className="text-base font-semibold mb-4">Node color</div>
+
+        <div className="flex items-center gap-3 mb-5">
+          <input
+            type="color"
+            value={hex}
+            onChange={(e) => setHex(e.target.value)}
+            className="w-14 h-10 bg-transparent border-0 p-0"
+          />
+          <input
+            value={hex}
+            onChange={(e) => setHex(e.target.value)}
+            className="flex-1 rounded-xl px-3 py-2 bg-white/20 dark:bg-white/10 border border-white/20 outline-none"
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            className="rounded-2xl px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-2xl px-4 py-2 text-sm bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
+            onClick={() => onApply(hex)}
+          >
+            Apply to selected
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type RoomResponse = {
@@ -46,8 +161,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const [isDark, setIsDark] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showColor, setShowColor] = useState(false);
 
-  // Selection state
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
 
@@ -59,7 +174,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const setEdges = useMindFlowStore((s) => s.setEdges);
   const resetRoom = useMindFlowStore((s) => s.resetRoom);
 
-  // Collaboration (polling + debounced save)
+  // Collaboration (poll + save)
   const roomRevRef = useRef<number>(0);
   const applyingRemoteRef = useRef<boolean>(false);
   const saveTimerRef = useRef<any>(null);
@@ -139,7 +254,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     saveTimerRef.current = setTimeout(async () => {
       try {
         const payload = { state: { nodes, edges }, rev: roomRevRef.current };
-
         const res = await fetch(`/api/rooms/${roomId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -161,7 +275,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     (changes: any) => setNodes(applyNodeChanges(changes, nodes)),
     [nodes, setNodes]
   );
-
   const onEdgesChange = useCallback(
     (changes: any) => setEdges(applyEdgeChanges(changes, edges)),
     [edges, setEdges]
@@ -181,13 +294,10 @@ function CanvasContent({ roomId }: { roomId: string }) {
     [edges, setEdges]
   );
 
-  // Toolbar Add node (center)
+  // Toolbar actions
   const handleAddNodeFromToolbar = useCallback(() => {
-    const position = screenToFlowPosition({
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
-    });
-    addNode(position);
+    const pos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    addNode(pos);
   }, [screenToFlowPosition, addNode]);
 
   const handleToggleTheme = useCallback(() => {
@@ -205,14 +315,10 @@ function CanvasContent({ roomId }: { roomId: string }) {
   }, []);
 
   const handleClearCanvas = useCallback(() => {
-    if (window.confirm('Reset canvas? This cannot be undone.')) {
-      resetRoom();
-    }
+    if (window.confirm('Reset canvas? This cannot be undone.')) resetRoom();
   }, [resetRoom]);
 
-  const handleFitView = useCallback(() => {
-    fitView({ padding: 0.2, duration: 400 });
-  }, [fitView]);
+  const handleFitView = useCallback(() => fitView({ padding: 0.2, duration: 400 }), [fitView]);
 
   // Delete selected
   const canDelete = useMemo(
@@ -224,36 +330,30 @@ function CanvasContent({ roomId }: { roomId: string }) {
     if (!canDelete) return;
 
     let nextEdges = edges.filter((e) => !selectedEdgeIds.includes(e.id));
-
     const nodeIdSet = new Set(selectedNodeIds);
     const nextNodes = nodes.filter((n) => !nodeIdSet.has(n.id));
 
     if (selectedNodeIds.length > 0) {
-      nextEdges = nextEdges.filter(
-        (e) => !nodeIdSet.has(e.source) && !nodeIdSet.has(e.target)
-      );
+      nextEdges = nextEdges.filter((e) => !nodeIdSet.has(e.source) && !nodeIdSet.has(e.target));
     }
 
     setNodes(nextNodes);
     setEdges(nextEdges);
-
     setSelectedNodeIds([]);
     setSelectedEdgeIds([]);
   }, [canDelete, edges, nodes, selectedEdgeIds, selectedNodeIds, setEdges, setNodes]);
 
-  // Ctrl+C
+  // Copy/Paste
   const handleCopy = useCallback(() => {
     const selNodes = nodes.filter((n) => selectedNodeIds.includes(n.id));
     if (selNodes.length === 0) return;
 
     const idSet = new Set(selNodes.map((n) => n.id));
     const selEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
-
     clipboardRef.current = { nodes: selNodes, edges: selEdges };
     pasteOffsetRef.current = 0;
   }, [nodes, edges, selectedNodeIds]);
 
-  // Ctrl+V
   const handlePaste = useCallback(() => {
     const clip = clipboardRef.current;
     if (!clip) return;
@@ -268,7 +368,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     const newNodes = clip.nodes.map((n) => {
       const newId = `${n.id}-copy-${now}-${rand()}`;
       idMap.set(n.id, newId);
-
       return {
         ...n,
         id: newId,
@@ -277,20 +376,14 @@ function CanvasContent({ roomId }: { roomId: string }) {
       };
     });
 
-    const newEdges: Edge[] = clip.edges.map((e) => {
-      const newId = `e${idMap.get(e.source)}-${e.sourceHandle ?? 's'}-${idMap.get(
-        e.target
-      )}-${e.targetHandle ?? 't'}-${now}-${rand()}`;
-      return {
-        ...e,
-        id: newId,
-        source: idMap.get(e.source)!,
-        target: idMap.get(e.target)!,
-        selected: true,
-      };
-    });
+    const newEdges: Edge[] = clip.edges.map((e) => ({
+      ...e,
+      id: `e${idMap.get(e.source)}-${e.sourceHandle ?? 's'}-${idMap.get(e.target)}-${e.targetHandle ?? 't'}-${now}-${rand()}`,
+      source: idMap.get(e.source)!,
+      target: idMap.get(e.target)!,
+      selected: true,
+    }));
 
-    // deselect old
     const clearedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const clearedEdges = edges.map((e) => ({ ...e, selected: false }));
 
@@ -298,7 +391,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setEdges([...clearedEdges, ...newEdges]);
   }, [nodes, edges, setNodes, setEdges]);
 
-  // Global key handling: Delete + Copy/Paste
+  // Global key handling
   const deleteSelectedRef = useRef<() => void>(() => {});
   useEffect(() => {
     deleteSelectedRef.current = handleDeleteSelected;
@@ -338,65 +431,73 @@ function CanvasContent({ roomId }: { roomId: string }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleCopy, handlePaste]);
 
-  // ✅ Export draw.io-style: whole map bounds, no minimap/toolbar, high-res
+  // Apply color to selected nodes (full color picker)
+  const applyColorToSelected = (hex: string) => {
+    const idSet = new Set(selectedNodeIds);
+    setNodes(
+      nodes.map((n) =>
+        idSet.has(n.id)
+          ? { ...n, data: { ...n.data, colorHex: hex } }
+          : n
+      )
+    );
+  };
+
+  // ✅ Export (whole map, not viewport) — clones nodes+edges layers
   const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
     const nodesLayer = document.querySelector('.react-flow__nodes') as HTMLElement | null;
     const edgesLayer = document.querySelector('.react-flow__edges') as HTMLElement | null;
     const labelsLayer = document.querySelector('.react-flow__edgelabel-renderer') as HTMLElement | null;
     const background = document.querySelector('.react-flow__background') as HTMLElement | null;
-  
+
     if (!nodesLayer || !edgesLayer) return;
-  
-    // Theme override
+
     const html = document.documentElement;
     const hadDark = html.classList.contains('dark');
     if (opts.theme === 'dark') html.classList.add('dark');
     if (opts.theme === 'light') html.classList.remove('dark');
-  
+
     const bgColor =
       opts.includeBackground
         ? opts.theme === 'dark'
           ? '#050815'
           : '#f7f7ff'
         : 'transparent';
-  
-    // Bounds (aus Node-Daten, zuverlässig für große Maps)
+
+    // bounds from node data
     const pad = 140;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  
+
     for (const n of nodes) {
       const x = n.position?.x ?? 0;
       const y = n.position?.y ?? 0;
-  
       const w =
         n.measured?.width ??
         n.width ??
         (typeof n.style?.width === 'number' ? n.style.width : undefined) ??
         220;
-  
+
       const h =
         n.measured?.height ??
         n.height ??
         (typeof n.style?.height === 'number' ? n.style.height : undefined) ??
         84;
-  
+
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x + w);
       maxY = Math.max(maxY, y + h);
     }
-  
+
     if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
       minX = 0; minY = 0; maxX = 1200; maxY = 800;
     }
-  
+
     const exportW = Math.ceil((maxX - minX) + pad * 2);
     const exportH = Math.ceil((maxY - minY) + pad * 2);
-  
-    // Hohe Schärfe (wie draw.io) – Datei wird größer
+
     const pixelRatio = 4;
-  
-    // Offscreen Wrapper
+
     const wrapper = document.createElement('div');
     wrapper.style.position = 'fixed';
     wrapper.style.left = '-10000px';
@@ -405,8 +506,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     wrapper.style.height = `${exportH}px`;
     wrapper.style.overflow = 'hidden';
     wrapper.style.background = bgColor;
-  
-    // Optional Grid/Background
+
     if (opts.includeBackground && background) {
       const bgClone = background.cloneNode(true) as HTMLElement;
       bgClone.style.position = 'absolute';
@@ -416,27 +516,24 @@ function CanvasContent({ roomId }: { roomId: string }) {
       bgClone.style.height = '100%';
       wrapper.appendChild(bgClone);
     }
-  
-    // Group, die wir passend verschieben
+
     const group = document.createElement('div');
     group.style.position = 'absolute';
     group.style.left = '0';
     group.style.top = '0';
     group.style.transformOrigin = '0 0';
     group.style.transform = `translate(${(-minX + pad)}px, ${(-minY + pad)}px)`;
-  
-    // Clone layers (OHNE Viewport-Transform!)
+
     const edgesClone = edgesLayer.cloneNode(true) as HTMLElement;
     const nodesClone = nodesLayer.cloneNode(true) as HTMLElement;
     group.appendChild(edgesClone);
     group.appendChild(nodesClone);
-  
+
     if (labelsLayer) {
       const labelsClone = labelsLayer.cloneNode(true) as HTMLElement;
       group.appendChild(labelsClone);
     }
-  
-    // Hide selection/handles in export
+
     const styleTag = document.createElement('style');
     styleTag.textContent = `
       .react-flow__minimap, .react-flow__controls, .react-flow__panel { display: none !important; }
@@ -444,10 +541,10 @@ function CanvasContent({ roomId }: { roomId: string }) {
       .react-flow__node.selected { outline: none !important; }
     `;
     wrapper.appendChild(styleTag);
-  
+
     wrapper.appendChild(group);
     document.body.appendChild(wrapper);
-  
+
     try {
       const dataUrl = await htmlToImage.toPng(wrapper, {
         backgroundColor: bgColor,
@@ -456,7 +553,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         width: exportW,
         height: exportH,
       });
-  
+
       const a = document.createElement('a');
       a.href = dataUrl;
       a.download = `mindflow-${roomId}.png`;
@@ -469,8 +566,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
       }
     }
   };
-
-
 
   return (
     <div className="w-full h-screen relative overflow-hidden canvas-cursor">
@@ -496,8 +591,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
           },
         }}
         // Interaction model
-        panOnDrag={[2]}
-        selectionOnDrag
+        panOnDrag={[2]} // right-click pan
+        selectionOnDrag // left-drag selection box
         selectionMode={SelectionMode.Partial}
         onPaneContextMenu={(e) => e.preventDefault()}
         elementsSelectable
@@ -515,6 +610,9 @@ function CanvasContent({ roomId }: { roomId: string }) {
 
         <MiniMap
           nodeColor={(node) => {
+            const hex = (node as any).data?.colorHex;
+            if (hex) return hex;
+
             const color = (node as any).data?.color;
             const colors: Record<string, string> = {
               blue: '#3b82f6',
@@ -537,6 +635,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         onClearCanvas={handleClearCanvas}
         onShare={() => setShowShare(true)}
         onExport={() => setShowExport(true)}
+        onColor={() => setShowColor(true)}
         onToggleTheme={handleToggleTheme}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
@@ -552,6 +651,15 @@ function CanvasContent({ roomId }: { roomId: string }) {
         onExport={(opts) => {
           setShowExport(false);
           exportPng(opts);
+        }}
+      />
+
+      <ColorModal
+        isOpen={showColor}
+        onClose={() => setShowColor(false)}
+        onApply={(hex) => {
+          setShowColor(false);
+          applyColorToSelected(hex);
         }}
       />
     </div>
