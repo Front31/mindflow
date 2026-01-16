@@ -23,7 +23,8 @@ import ShareModal from './ShareModal';
 import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
 import { getRectOfNodes, getTransformForBounds } from 'reactflow';
-
+import * as htmlToImage from 'html-to-image';
+import { getRectOfNodes, getTransformForBounds } from 'reactflow';
 
 const nodeTypes = {
   mindMapNode: CustomNode,
@@ -446,11 +447,11 @@ function CanvasContent({ roomId }: { roomId: string }) {
   };
 
   // ✅ Export (whole map, not viewport) — clones nodes+edges layers
- const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
+  const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
     const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
     if (!viewport) return;
   
-    // Theme override
+    // --- Theme override
     const html = document.documentElement;
     const hadDark = html.classList.contains('dark');
     if (opts.theme === 'dark') html.classList.add('dark');
@@ -463,27 +464,56 @@ function CanvasContent({ roomId }: { roomId: string }) {
           : '#f7f7ff'
         : 'transparent';
   
-    // 1) Bounds der Nodes
+    // --- (1) TEMP: Glass/Blur deaktivieren -> verhindert "weißes Bild"
+    const styleTag = document.createElement('style');
+    styleTag.setAttribute('data-export-fix', '1');
+    styleTag.textContent = `
+      /* Kill blur/filters for export */
+      .glass-node, .glass, .glass-elevated {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        filter: none !important;
+      }
+    `;
+    document.head.appendChild(styleTag);
+  
+    // --- (2) Bounds -> Transform (ganze Map)
     const bounds = getRectOfNodes(nodes);
   
-    // 2) Zielbildgröße (max px, damit es nicht explodiert)
-    // draw.io-like: groß genug, aber begrenzen
-    const padding = 80;
-    const maxWidth = 8000;
-    const maxHeight = 8000;
+    // Zielgröße groß genug (damit große Maps lesbar bleiben)
+    const exportW = 6000;
+    const exportH = 6000;
+    const padding = 120;
   
-    // 3) Transform berechnen, der alle Nodes in maxWidth/maxHeight einpasst
-    const [tx, ty, tScale] = getTransformForBounds(bounds, maxWidth, maxHeight, 0.1, 2, padding);
+    // je nach ReactFlow-Version: Argument-Reihenfolge variiert
+    let tx = 0, ty = 0, scale = 1;
+    try {
+      [tx, ty, scale] = getTransformForBounds(bounds, exportW, exportH, 0.1, 2, padding);
+    } catch {
+      [tx, ty, scale] = getTransformForBounds(bounds, exportW, exportH, padding, 0.1, 2);
+    }
   
-    // 4) Export (viewport) mit überschriebenem transformStyle
     try {
       const dataUrl = await htmlToImage.toPng(viewport, {
         cacheBust: true,
         backgroundColor: bgColor,
-        pixelRatio: 3, // zusätzlich zur Skalierung
+        pixelRatio: 3, // 2-4 -> schärfer, größere Datei
+        // (3) Wichtig: Transform für Export überschreiben
         style: {
-          transform: `translate(${tx}px, ${ty}px) scale(${tScale})`,
+          transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
           transformOrigin: '0 0',
+        },
+        // (4) MiniMap/Toolbar/Handles im Export rausfiltern
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          const c = node.classList;
+          if (c.contains('react-flow__minimap')) return false;
+          if (c.contains('react-flow__panel')) return false;
+          if (c.contains('react-flow__controls')) return false;
+          if (c.contains('react-flow__handle')) return false;
+          if (c.contains('react-flow__nodesselection')) return false;
+          if (c.contains('react-flow__selection')) return false;
+          return true;
         },
       });
   
@@ -492,7 +522,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
       a.download = `mindflow-${roomId}.png`;
       a.click();
     } finally {
-      // Theme restore
+      // cleanup
+      styleTag.remove();
       if (opts.theme !== 'current') {
         if (hadDark) html.classList.add('dark');
         else html.classList.remove('dark');
