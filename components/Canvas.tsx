@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -15,18 +15,12 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import * as htmlToImage from 'html-to-image';
-
 import CustomNode from './CustomNode';
 import Toolbar from './Toolbar';
 import ShareModal from './ShareModal';
-import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
-import { getRectOfNodes, getTransformForBounds } from 'reactflow';
 
-const nodeTypes = {
-  mindMapNode: CustomNode,
-};
+const nodeTypes = { mindMapNode: CustomNode };
 
 function sameIdList(a: string[], b: string[]) {
   if (a === b) return true;
@@ -35,69 +29,12 @@ function sameIdList(a: string[], b: string[]) {
   return true;
 }
 
-/** Inline Modal: Export */
-function ExportModal({
-  isOpen,
-  onClose,
-  onExport,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onExport: (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => void;
-}) {
-  const [includeBackground, setIncludeBackground] = useState(true);
-  const [theme, setTheme] = useState<'current' | 'light' | 'dark'>('current');
+type RoomResponse = {
+  id: string;
+  state: { nodes: any[]; edges: Edge[] } | null;
+  rev: number;
+};
 
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative glass-elevated rounded-3xl p-6 w-[360px]">
-        <div className="text-base font-semibold mb-4">Export PNG</div>
-
-        <label className="flex items-center gap-2 mb-4">
-          <input
-            type="checkbox"
-            checked={includeBackground}
-            onChange={(e) => setIncludeBackground(e.target.checked)}
-          />
-          <span className="text-sm">Include background</span>
-        </label>
-
-        <div className="mb-5">
-          <div className="text-sm font-medium mb-2">Theme</div>
-          <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value as any)}
-            className="w-full rounded-xl px-3 py-2 bg-white/20 dark:bg-white/10 border border-white/20 outline-none"
-          >
-            <option value="current">Current</option>
-            <option value="light">Force Light</option>
-            <option value="dark">Force Dark</option>
-          </select>
-        </div>
-
-        <div className="flex items-center justify-end gap-2">
-          <button
-            className="rounded-2xl px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            className="rounded-2xl px-4 py-2 text-sm bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
-            onClick={() => onExport({ includeBackground, theme })}
-          >
-            Export
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Inline Modal: Color Picker */
 function ColorModal({
   isOpen,
   onClose,
@@ -108,7 +45,6 @@ function ColorModal({
   onApply: (hex: string) => void;
 }) {
   const [hex, setHex] = useState('#3b82f6');
-
   if (!isOpen) return null;
 
   return (
@@ -150,24 +86,18 @@ function ColorModal({
   );
 }
 
-type RoomResponse = {
-  id: string;
-  state: { nodes: any[]; edges: Edge[] } | null;
-  rev: number;
-};
-
 function CanvasContent({ roomId }: { roomId: string }) {
   const { fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
 
   const [isDark, setIsDark] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [showExport, setShowExport] = useState(false);
   const [showColor, setShowColor] = useState(false);
 
+  // Selection state
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
 
-  // Store
+  // Store (single source of truth)
   const nodes = useMindFlowStore((s) => s.nodes) as any[];
   const edges = useMindFlowStore((s) => s.edges) as Edge[];
   const addNode = useMindFlowStore((s) => s.addNode);
@@ -184,6 +114,9 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const clipboardRef = useRef<{ nodes: any[]; edges: Edge[] } | null>(null);
   const pasteOffsetRef = useRef(0);
 
+  // Upload input
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Theme init
   useEffect(() => {
     const isDarkMode =
@@ -195,7 +128,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     if (isDarkMode) document.documentElement.classList.add('dark');
   }, []);
 
-  // Initial load
+  // Initial load from DB
   useEffect(() => {
     let cancelled = false;
 
@@ -224,7 +157,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     };
   }, [roomId, setNodes, setEdges]);
 
-  // Poll
+  // Poll for remote updates
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -247,7 +180,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     return () => clearInterval(t);
   }, [roomId, setNodes, setEdges]);
 
-  // Debounced save
+  // Debounced save to DB
   useEffect(() => {
     if (applyingRemoteRef.current) return;
 
@@ -260,7 +193,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-
         const out = await res.json();
         if (out?.rev) roomRevRef.current = out.rev;
       } catch {
@@ -406,7 +338,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
         (el.tagName === 'INPUT' ||
           el.tagName === 'TEXTAREA' ||
           (el as any).isContentEditable);
-
       if (isTyping) return;
 
       const isMac = navigator.platform.toLowerCase().includes('mac');
@@ -432,103 +363,65 @@ function CanvasContent({ roomId }: { roomId: string }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleCopy, handlePaste]);
 
-  // Apply color to selected nodes (full color picker)
+  // Color apply
   const applyColorToSelected = (hex: string) => {
     const idSet = new Set(selectedNodeIds);
-    setNodes(
-      nodes.map((n) =>
-        idSet.has(n.id)
-          ? { ...n, data: { ...n.data, colorHex: hex } }
-          : n
-      )
-    );
+    setNodes(nodes.map((n) => (idSet.has(n.id) ? { ...n, data: { ...n.data, colorHex: hex } } : n)));
   };
 
-  // ✅ Export (whole map, not viewport) — clones nodes+edges layers
-  const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
-    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
-    if (!viewport) return;
-  
-    // --- Theme override
-    const html = document.documentElement;
-    const hadDark = html.classList.contains('dark');
-    if (opts.theme === 'dark') html.classList.add('dark');
-    if (opts.theme === 'light') html.classList.remove('dark');
-  
-    const bgColor =
-      opts.includeBackground
-        ? opts.theme === 'dark'
-          ? '#050815'
-          : '#f7f7ff'
-        : 'transparent';
-  
-    // --- (1) TEMP: Glass/Blur deaktivieren -> verhindert "weißes Bild"
-    const styleTag = document.createElement('style');
-    styleTag.setAttribute('data-export-fix', '1');
-    styleTag.textContent = `
-      /* Kill blur/filters for export */
-      .glass-node, .glass, .glass-elevated {
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        filter: none !important;
-      }
-    `;
-    document.head.appendChild(styleTag);
-  
-    // --- (2) Bounds -> Transform (ganze Map)
-    const bounds = getRectOfNodes(nodes);
-  
-    // Zielgröße groß genug (damit große Maps lesbar bleiben)
-    const exportW = 6000;
-    const exportH = 6000;
-    const padding = 120;
-  
-    // je nach ReactFlow-Version: Argument-Reihenfolge variiert
-    let tx = 0, ty = 0, scale = 1;
-    try {
-      [tx, ty, scale] = getTransformForBounds(bounds, exportW, exportH, 0.1, 2, padding);
-    } catch {
-      [tx, ty, scale] = getTransformForBounds(bounds, exportW, exportH, padding, 0.1, 2);
-    }
-  
-    try {
-      const dataUrl = await htmlToImage.toPng(viewport, {
-        cacheBust: true,
-        backgroundColor: bgColor,
-        pixelRatio: 3, // 2-4 -> schärfer, größere Datei
-        // (3) Wichtig: Transform für Export überschreiben
-        style: {
-          transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
-          transformOrigin: '0 0',
-        },
-        // (4) MiniMap/Toolbar/Handles im Export rausfiltern
-        filter: (node) => {
-          if (!(node instanceof HTMLElement)) return true;
-          const c = node.classList;
-          if (c.contains('react-flow__minimap')) return false;
-          if (c.contains('react-flow__panel')) return false;
-          if (c.contains('react-flow__controls')) return false;
-          if (c.contains('react-flow__handle')) return false;
-          if (c.contains('react-flow__nodesselection')) return false;
-          if (c.contains('react-flow__selection')) return false;
-          return true;
-        },
-      });
-  
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `mindflow-${roomId}.png`;
-      a.click();
-    } finally {
-      // cleanup
-      styleTag.remove();
-      if (opts.theme !== 'current') {
-        if (hadDark) html.classList.add('dark');
-        else html.classList.remove('dark');
-      }
-    }
-  };
+  // Download / Upload
+  const handleDownloadFile = useCallback(() => {
+    const payload = {
+      version: 1,
+      app: 'mindflow',
+      roomId,
+      savedAt: new Date().toISOString(),
+      state: { nodes, edges },
+    };
 
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mindflow-${roomId}.mindflow.json`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  }, [nodes, edges, roomId]);
+
+  const handleUploadFileClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleUploadFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+
+        const state = json?.state ?? json;
+        const newNodes = state?.nodes;
+        const newEdges = state?.edges;
+
+        if (!Array.isArray(newNodes) || !Array.isArray(newEdges)) {
+          alert('Invalid file. Expected { state: { nodes: [], edges: [] } }.');
+          return;
+        }
+
+        setNodes(newNodes);
+        setEdges(newEdges);
+      } catch {
+        alert('Could not read file. Is it a valid MindFlow JSON export?');
+      } finally {
+        e.target.value = '';
+      }
+    },
+    [setNodes, setEdges]
+  );
 
   return (
     <div className="w-full h-screen relative overflow-hidden canvas-cursor">
@@ -553,9 +446,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
             strokeDasharray: '4 6',
           },
         }}
-        // Interaction model
-        panOnDrag={[2]} // right-click pan
-        selectionOnDrag // left-drag selection box
+        panOnDrag={[2]}
+        selectionOnDrag
         selectionMode={SelectionMode.Partial}
         onPaneContextMenu={(e) => e.preventDefault()}
         elementsSelectable
@@ -575,7 +467,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
           nodeColor={(node) => {
             const hex = (node as any).data?.colorHex;
             if (hex) return hex;
-
             const color = (node as any).data?.color;
             const colors: Record<string, string> = {
               blue: '#3b82f6',
@@ -597,7 +488,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
         canDelete={canDelete}
         onClearCanvas={handleClearCanvas}
         onShare={() => setShowShare(true)}
-        onExport={() => setShowExport(true)}
+        onDownloadFile={handleDownloadFile}
+        onUploadFile={handleUploadFileClick}
         onColor={() => setShowColor(true)}
         onToggleTheme={handleToggleTheme}
         onZoomIn={zoomIn}
@@ -606,16 +498,15 @@ function CanvasContent({ roomId }: { roomId: string }) {
         isDark={isDark}
       />
 
-      <ShareModal isOpen={showShare} onClose={() => setShowShare(false)} roomId={roomId} />
-
-      <ExportModal
-        isOpen={showExport}
-        onClose={() => setShowExport(false)}
-        onExport={(opts) => {
-          setShowExport(false);
-          exportPng(opts);
-        }}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json,.mindflow"
+        className="hidden"
+        onChange={handleUploadFile}
       />
+
+      <ShareModal isOpen={showShare} onClose={() => setShowShare(false)} roomId={roomId} />
 
       <ColorModal
         isOpen={showColor}
