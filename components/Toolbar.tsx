@@ -14,10 +14,12 @@ import {
   Palette,
   Moon,
   Sun,
+  MoreHorizontal,
+  Minus,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-interface ToolbarProps {
+export interface ToolbarProps {
   onAddNode: () => void;
 
   onDeleteSelected: () => void;
@@ -30,6 +32,9 @@ interface ToolbarProps {
   onUploadFile: () => void;
 
   onColor: () => void;
+
+  edgeDashed: boolean;
+  onToggleDashed: () => void;
 
   onToggleTheme: () => void;
   onZoomIn: () => void;
@@ -47,6 +52,8 @@ function Toolbar({
   onDownloadFile,
   onUploadFile,
   onColor,
+  edgeDashed,
+  onToggleDashed,
   onToggleTheme,
   onZoomIn,
   onZoomOut,
@@ -58,38 +65,29 @@ function Toolbar({
     tap: { scale: 0.95 },
   };
 
+  const baseBtn =
+    'p-3 rounded-2xl transition-colors hover:bg-black/5 dark:hover:bg-white/10';
+
   return (
     <motion.div
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.25 }}
       className="glass-elevated fixed top-6 left-1/2 -translate-x-1/2 z-50 rounded-3xl px-6 py-3"
     >
       <div className="flex items-center gap-2">
-        {/* Add Node */}
+        {/* Add node */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
           whileTap="tap"
           onClick={onAddNode}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Add Node"
+          className={baseBtn}
+          title="Add node"
         >
           <PlusCircle className="w-5 h-5" />
         </motion.button>
 
-        {/* Color */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onColor}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Color (selected nodes)"
-        >
-          <Palette className="w-5 h-5" />
-        </motion.button>      
-        
         {/* Delete */}
         <motion.button
           variants={buttonVariants}
@@ -97,17 +95,15 @@ function Toolbar({
           whileTap={canDelete ? 'tap' : undefined}
           onClick={onDeleteSelected}
           disabled={!canDelete}
-          className={`p-3 rounded-2xl transition-colors ${
-            canDelete
-              ? 'hover:bg-black/5 dark:hover:bg-white/10'
-              : 'opacity-40 cursor-not-allowed'
+          className={`${baseBtn} ${
+            canDelete ? '' : 'opacity-40 cursor-not-allowed'
           }`}
           title="Delete selected (Del / Backspace)"
         >
           <Trash2 className="w-5 h-5" />
         </motion.button>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
 
         {/* Zoom */}
         <motion.button
@@ -115,8 +111,8 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onZoomIn}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Zoom In"
+          className={baseBtn}
+          title="Zoom in"
         >
           <ZoomIn className="w-5 h-5" />
         </motion.button>
@@ -126,8 +122,8 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onZoomOut}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Zoom Out"
+          className={baseBtn}
+          title="Zoom out"
         >
           <ZoomOut className="w-5 h-5" />
         </motion.button>
@@ -137,13 +133,45 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onFitView}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Fit View"
+          className={baseBtn}
+          title="Fit view"
         >
           <Maximize2 className="w-5 h-5" />
         </motion.button>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
+
+        {/* Color */}
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
+          onClick={onColor}
+          className={baseBtn}
+          title="Color selected nodes"
+        >
+          <Palette className="w-5 h-5" />
+        </motion.button>
+
+        {/* Edge style */}
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
+          onClick={onToggleDashed}
+          className={`${baseBtn} ${
+            edgeDashed ? 'bg-black/5 dark:bg-white/10' : ''
+          }`}
+          title={edgeDashed ? 'Dashed edges' : 'Solid edges'}
+        >
+          {edgeDashed ? (
+            <MoreHorizontal className="w-5 h-5" />
+          ) : (
+            <Minus className="w-5 h-5" />
+          )}
+        </motion.button>
+
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
 
         {/* Share */}
         <motion.button
@@ -151,7 +179,7 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onShare}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          className={baseBtn}
           title="Share"
         >
           <Share2 className="w-5 h-5" />
@@ -163,7 +191,7 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onDownloadFile}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          className={baseBtn}
           title="Download .mindflow.json"
         >
           <Download className="w-5 h-5" />
@@ -174,13 +202,13 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onUploadFile}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          className={baseBtn}
           title="Upload .mindflow.json"
         >
           <Upload className="w-5 h-5" />
         </motion.button>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
 
         {/* Theme */}
         <motion.button
@@ -188,8 +216,8 @@ function Toolbar({
           whileHover="hover"
           whileTap="tap"
           onClick={onToggleTheme}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Toggle Theme"
+          className={baseBtn}
+          title="Toggle theme"
         >
           {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </motion.button>
