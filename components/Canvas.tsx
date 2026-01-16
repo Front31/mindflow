@@ -339,133 +339,117 @@ function CanvasContent({ roomId }: { roomId: string }) {
   }, [handleCopy, handlePaste]);
 
   // ✅ Export draw.io-style: whole map bounds, no minimap/toolbar, high-res
-  const exportPng = useCallback(
-    async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
-      const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
-      const background = document.querySelector('.react-flow__background') as HTMLElement | null;
-      if (!viewport) return;
-
-      // theme override
-      const html = document.documentElement;
-      const hadDark = html.classList.contains('dark');
-      if (opts.theme === 'dark') html.classList.add('dark');
-      if (opts.theme === 'light') html.classList.remove('dark');
-
-      const bgColor =
-        opts.includeBackground
-          ? opts.theme === 'dark'
-            ? '#050815'
-            : '#f7f7ff'
-          : 'transparent';
-
-      // bounds
-      const pad = 120;
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-
-      for (const n of nodes) {
-        const x = n.position?.x ?? 0;
-        const y = n.position?.y ?? 0;
-
-        const w =
-          n.measured?.width ??
-          n.width ??
-          (typeof n.style?.width === 'number' ? n.style.width : undefined) ??
-          220;
-
-        const h =
-          n.measured?.height ??
-          n.height ??
-          (typeof n.style?.height === 'number' ? n.style.height : undefined) ??
-          84;
-
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + w);
-        maxY = Math.max(maxY, y + h);
+  const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
+    const background = document.querySelector('.react-flow__background') as HTMLElement | null;
+    if (!viewport) return;
+  
+    const html = document.documentElement;
+    const hadDark = html.classList.contains('dark');
+  
+    if (opts.theme === 'dark') html.classList.add('dark');
+    if (opts.theme === 'light') html.classList.remove('dark');
+  
+    const bgColor =
+      opts.includeBackground
+        ? opts.theme === 'dark'
+          ? '#050815'
+          : '#f7f7ff'
+        : 'transparent';
+  
+    // bounds
+    const pad = 120;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  
+    for (const n of nodes) {
+      const x = n.position?.x ?? 0;
+      const y = n.position?.y ?? 0;
+  
+      const w =
+        n.measured?.width ??
+        n.width ??
+        (typeof n.style?.width === 'number' ? n.style.width : undefined) ??
+        220;
+  
+      const h =
+        n.measured?.height ??
+        n.height ??
+        (typeof n.style?.height === 'number' ? n.style.height : undefined) ??
+        84;
+  
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w);
+      maxY = Math.max(maxY, y + h);
+    }
+  
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+      minX = 0; minY = 0; maxX = 1200; maxY = 800;
+    }
+  
+    const exportW = Math.ceil((maxX - minX) + pad * 2);
+    const exportH = Math.ceil((maxY - minY) + pad * 2);
+    const pixelRatio = 4;
+  
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.left = '-10000px';
+    wrapper.style.top = '0';
+    wrapper.style.width = `${exportW}px`;
+    wrapper.style.height = `${exportH}px`;
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.background = bgColor;
+  
+    if (opts.includeBackground && background) {
+      const bgClone = background.cloneNode(true) as HTMLElement;
+      bgClone.style.position = 'absolute';
+      bgClone.style.left = '0';
+      bgClone.style.top = '0';
+      bgClone.style.width = '100%';
+      bgClone.style.height = '100%';
+      wrapper.appendChild(bgClone);
+    }
+  
+    const vpClone = viewport.cloneNode(true) as HTMLElement;
+    vpClone.style.transformOrigin = '0 0';
+  
+    const tx = -minX + pad;
+    const ty = -minY + pad;
+    vpClone.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+  
+    const styleTag = document.createElement('style');
+    styleTag.textContent = `
+      .react-flow__minimap, .react-flow__controls, .react-flow__panel { display: none !important; }
+      .react-flow__nodesselection, .react-flow__selection, .react-flow__handle { display: none !important; }
+      .react-flow__node.selected { outline: none !important; }
+    `;
+    wrapper.appendChild(styleTag);
+  
+    wrapper.appendChild(vpClone);
+    document.body.appendChild(wrapper);
+  
+    try {
+      const dataUrl = await htmlToImage.toPng(wrapper, {
+        backgroundColor: bgColor,
+        pixelRatio,
+        cacheBust: true,
+        width: exportW,
+        height: exportH,
+      });
+  
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `mindflow-${roomId}.png`;
+      a.click();
+    } finally {
+      wrapper.remove();
+      if (opts.theme !== 'current') {
+        if (hadDark) html.classList.add('dark');
+        else html.classList.remove('dark');
       }
+    }
+  };
 
-      if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
-        minX = 0;
-        minY = 0;
-        maxX = 1200;
-        maxY = 800;
-      }
-
-      const contentW = Math.max(1, maxX - minX);
-      const contentH = Math.max(1, maxY - minY);
-
-      const exportW = Math.ceil(contentW + pad * 2);
-      const exportH = Math.ceil(contentH + pad * 2);
-
-      const pixelRatio = 4;
-
-      // wrapper offscreen
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'fixed';
-      wrapper.style.left = '-10000px';
-      wrapper.style.top = '0';
-      wrapper.style.width = `${exportW}px`;
-      wrapper.style.height = `${exportH}px`;
-      wrapper.style.overflow = 'hidden';
-      wrapper.style.background = bgColor;
-
-      // background grid clone (optional)
-      if (opts.includeBackground && background) {
-        const bgClone = background.cloneNode(true) as HTMLElement;
-        bgClone.style.position = 'absolute';
-        bgClone.style.left = '0';
-        bgClone.style.top = '0';
-        bgClone.style.width = '100%';
-        bgClone.style.height = '100%';
-        wrapper.appendChild(bgClone);
-      }
-
-      // viewport clone with forced transform to fit bounds
-      const vpClone = viewport.cloneNode(true) as HTMLElement;
-      vpClone.style.transformOrigin = '0 0';
-
-      const tx = -minX + pad;
-      const ty = -minY + pad;
-      vpClone.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
-
-      // hide handles / selection in export
-      const styleTag = document.createElement('style');
-      styleTag.textContent = `
-        .react-flow__minimap, .react-flow__controls, .react-flow__panel { display: none !important; }
-        .react-flow__nodesselection, .react-flow__selection, .react-flow__handle { display: none !important; }
-        .react-flow__node.selected { outline: none !important; }
-      `;
-      wrapper.appendChild(styleTag);
-
-      wrapper.appendChild(vpClone);
-      document.body.appendChild(wrapper);
-
-      try {
-        const dataUrl = await htmlToImage.toPng(wrapper, {
-          backgroundColor: bgColor,
-          pixelRatio,
-          cacheBust: true,
-          width: exportW,
-          height: exportH,
-        });
-
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `mindflow-${roomId}.png`;
-        a.click();
-      } finally {
-        wrapper.remove();
-        if (opts.theme !== 'current') {
-          if (hadDark) html.classList.add('dark');
-          else html.classList.remove('dark');
-        }
-      }
-    },
-    [nodes, roomId]
-  );
 
   return (
     <div className="w-full h-screen relative overflow-hidden canvas-cursor">
