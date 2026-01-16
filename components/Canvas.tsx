@@ -22,6 +22,8 @@ import Toolbar from './Toolbar';
 import ShareModal from './ShareModal';
 import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
+import { getRectOfNodes, getTransformForBounds } from 'reactflow';
+
 
 const nodeTypes = {
   mindMapNode: CustomNode,
@@ -444,128 +446,60 @@ function CanvasContent({ roomId }: { roomId: string }) {
   };
 
   // ✅ Export (whole map, not viewport) — clones nodes+edges layers
-  const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
-    const nodesLayer = document.querySelector('.react-flow__nodes') as HTMLElement | null;
-    const edgesLayer = document.querySelector('.react-flow__edges') as HTMLElement | null;
-    const labelsLayer = document.querySelector('.react-flow__edgelabel-renderer') as HTMLElement | null;
-    const background = document.querySelector('.react-flow__background') as HTMLElement | null;
-
-    if (!nodesLayer || !edgesLayer) return;
-
+ const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
+    if (!viewport) return;
+  
+    // Theme override
     const html = document.documentElement;
     const hadDark = html.classList.contains('dark');
     if (opts.theme === 'dark') html.classList.add('dark');
     if (opts.theme === 'light') html.classList.remove('dark');
-
+  
     const bgColor =
       opts.includeBackground
         ? opts.theme === 'dark'
           ? '#050815'
           : '#f7f7ff'
         : 'transparent';
-
-    // bounds from node data
-    const pad = 140;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-    for (const n of nodes) {
-      const x = n.position?.x ?? 0;
-      const y = n.position?.y ?? 0;
-      const w =
-        n.measured?.width ??
-        n.width ??
-        (typeof n.style?.width === 'number' ? n.style.width : undefined) ??
-        220;
-
-      const h =
-        n.measured?.height ??
-        n.height ??
-        (typeof n.style?.height === 'number' ? n.style.height : undefined) ??
-        84;
-
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + w);
-      maxY = Math.max(maxY, y + h);
-    }
-
-    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
-      minX = 0; minY = 0; maxX = 1200; maxY = 800;
-    }
-
-    const exportW = Math.ceil((maxX - minX) + pad * 2);
-    const exportH = Math.ceil((maxY - minY) + pad * 2);
-
-    const pixelRatio = 4;
-
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'fixed';
-    wrapper.style.left = '-10000px';
-    wrapper.style.top = '0';
-    wrapper.style.width = `${exportW}px`;
-    wrapper.style.height = `${exportH}px`;
-    wrapper.style.overflow = 'hidden';
-    wrapper.style.background = bgColor;
-
-    if (opts.includeBackground && background) {
-      const bgClone = background.cloneNode(true) as HTMLElement;
-      bgClone.style.position = 'absolute';
-      bgClone.style.left = '0';
-      bgClone.style.top = '0';
-      bgClone.style.width = '100%';
-      bgClone.style.height = '100%';
-      wrapper.appendChild(bgClone);
-    }
-
-    const group = document.createElement('div');
-    group.style.position = 'absolute';
-    group.style.left = '0';
-    group.style.top = '0';
-    group.style.transformOrigin = '0 0';
-    group.style.transform = `translate(${(-minX + pad)}px, ${(-minY + pad)}px)`;
-
-    const edgesClone = edgesLayer.cloneNode(true) as HTMLElement;
-    const nodesClone = nodesLayer.cloneNode(true) as HTMLElement;
-    group.appendChild(edgesClone);
-    group.appendChild(nodesClone);
-
-    if (labelsLayer) {
-      const labelsClone = labelsLayer.cloneNode(true) as HTMLElement;
-      group.appendChild(labelsClone);
-    }
-
-    const styleTag = document.createElement('style');
-    styleTag.textContent = `
-      .react-flow__minimap, .react-flow__controls, .react-flow__panel { display: none !important; }
-      .react-flow__nodesselection, .react-flow__selection, .react-flow__handle { display: none !important; }
-      .react-flow__node.selected { outline: none !important; }
-    `;
-    wrapper.appendChild(styleTag);
-
-    wrapper.appendChild(group);
-    document.body.appendChild(wrapper);
-
+  
+    // 1) Bounds der Nodes
+    const bounds = getRectOfNodes(nodes);
+  
+    // 2) Zielbildgröße (max px, damit es nicht explodiert)
+    // draw.io-like: groß genug, aber begrenzen
+    const padding = 80;
+    const maxWidth = 8000;
+    const maxHeight = 8000;
+  
+    // 3) Transform berechnen, der alle Nodes in maxWidth/maxHeight einpasst
+    const [tx, ty, tScale] = getTransformForBounds(bounds, maxWidth, maxHeight, padding);
+  
+    // 4) Export (viewport) mit überschriebenem transformStyle
     try {
-      const dataUrl = await htmlToImage.toPng(wrapper, {
-        backgroundColor: bgColor,
-        pixelRatio,
+      const dataUrl = await htmlToImage.toPng(viewport, {
         cacheBust: true,
-        width: exportW,
-        height: exportH,
+        backgroundColor: bgColor,
+        pixelRatio: 3, // zusätzlich zur Skalierung
+        style: {
+          transform: `translate(${tx}px, ${ty}px) scale(${tScale})`,
+          transformOrigin: '0 0',
+        },
       });
-
+  
       const a = document.createElement('a');
       a.href = dataUrl;
       a.download = `mindflow-${roomId}.png`;
       a.click();
     } finally {
-      wrapper.remove();
+      // Theme restore
       if (opts.theme !== 'current') {
         if (hadDark) html.classList.add('dark');
         else html.classList.remove('dark');
       }
     }
   };
+
 
   return (
     <div className="w-full h-screen relative overflow-hidden canvas-cursor">
