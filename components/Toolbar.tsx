@@ -145,18 +145,6 @@ function Toolbar({
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
 
-        {/* Reset */}
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          onClick={onClearCanvas}
-          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Reset Canvas"
-        >
-          <RefreshCw className="w-5 h-5" />
-        </motion.button>
-
         {/* Share */}
         <motion.button
           variants={buttonVariants}
