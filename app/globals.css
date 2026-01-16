@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 12px 48px rgba(0, 0, 0, 0.12);
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --glass-bg: rgba(0, 0, 0, 0.3);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+@layer base {
+  body {
+    @apply bg-white dark:bg-black text-black dark:text-white;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  /* Glass Morphism Base */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-soft);
+  }
+  
+  .glass-elevated {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-elevated);
+  }
+  
+  /* Custom Button Styles */
+  .btn-glass {
+    @apply glass rounded-2xl px-4 py-2 transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+  
+  /* Node Styles */
+  .node-glass {
+    @apply glass rounded-3xl p-4 transition-all duration-300;
+  }
+  
+  /* Smooth Transitions */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Spring Animation */
+  .spring {
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/* React Flow Custom Styles */
+.react-flow__node {
+  border: none !important;
+  border-radius: 24px !important;
+  padding: 0 !important;
+}
+
+.react-flow__handle {
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid white !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.2s ease !important;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.2) !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2 !important;
+  stroke: rgba(0, 0, 0, 0.2) !important;
+}
+
+.dark .react-flow__edge-path {
+  stroke: rgba(255, 255, 255, 0.3) !important;
+}
+
+.react-flow__background {
+  background-color: transparent !important;
+}
+
+.react-flow__controls {
+  @apply glass rounded-2xl overflow-hidden !important;
+  box-shadow: none !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+.dark .react-flow__controls-button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Selection Box */
+.react-flow__nodesselection-rect,
+.react-flow__selection {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 2px solid rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Minimap */
+.react-flow__minimap {
+  @apply glass rounded-2xl !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Custom Cursor for Canvas */
+.canvas-cursor {
+  cursor: grab;
+}
+
+.canvas-cursor:active {
+  cursor: grabbing;
+}
