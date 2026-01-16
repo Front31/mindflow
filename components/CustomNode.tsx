@@ -56,7 +56,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const visibleHandleClass =
     '!w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45';
   const hitboxHandleClass =
-    '!w-7 !h-7 !rounded-full !border-0 !bg-transparent !shadow-none';
+    '!w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
 
   const accentStyle = { background: accent };
   const visibleNoPointer = { pointerEvents: 'none' as const };
