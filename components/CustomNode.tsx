@@ -159,8 +159,8 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         minHeight: 84,
         borderColor: 'rgba(255,255,255,0.14)',
         boxShadow: selected
-          ? `0 22px 70px rgba(0,0,0,0.55), 0 0 0 2px ${accent}66`
-          : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 1px ${accent}33`,
+          ? `0 22px 70px rgba(0,0,0,0.55), 0 0 0 3px ${accent}88, 0 0 22px ${accent}33`
+          : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
       {/* LEFT */}
