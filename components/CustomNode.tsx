@@ -52,11 +52,13 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [handleBlur, data.label]
   );
 
-  // Handles
+  // Visible dot (small) — shown only on hover/selected
   const visibleHandleClass =
     '!w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45';
+
+  // BIG invisible hitbox for draw.io-like ease
   const hitboxHandleClass =
-    '!w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
+    '!w-12 !h-12 !rounded-full !border-0 !bg-transparent !shadow-none';
 
   const accentStyle = { background: accent };
   const visibleNoPointer = { pointerEvents: 'none' as const };
@@ -140,6 +142,9 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [id, setNodes]
   );
 
+  // draw.io-like visibility: show dots on hover/selected
+  const dotVisibility = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
+
   return (
     <div
       ref={containerRef}
@@ -163,47 +168,47 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      {/* LEFT */}
+      {/* LEFT (in+out) */}
       <Handle id="t-left" type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: '48%' }} />
       <Handle id="s-left" type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: '52%' }} />
       <Handle
         id="v-left"
         type="target"
         position={Position.Left}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900`}
+        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
         style={{ ...accentStyle, top: '50%', ...visibleNoPointer }}
       />
 
-      {/* RIGHT */}
+      {/* RIGHT (in+out) */}
       <Handle id="t-right" type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: '48%' }} />
       <Handle id="s-right" type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: '52%' }} />
       <Handle
         id="v-right"
         type="source"
         position={Position.Right}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900`}
+        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
         style={{ ...accentStyle, top: '50%', ...visibleNoPointer }}
       />
 
-      {/* TOP */}
+      {/* TOP (in+out) */}
       <Handle id="t-top" type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: '48%', transform: 'translateX(-50%)' }} />
       <Handle id="s-top" type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: '52%', transform: 'translateX(-50%)' }} />
       <Handle
         id="v-top"
         type="target"
         position={Position.Top}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900`}
+        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
         style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
       />
 
-      {/* BOTTOM */}
+      {/* BOTTOM (in+out) */}
       <Handle id="t-bottom" type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: '48%', transform: 'translateX(-50%)' }} />
       <Handle id="s-bottom" type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: '52%', transform: 'translateX(-50%)' }} />
       <Handle
         id="v-bottom"
         type="source"
         position={Position.Bottom}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900`}
+        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
         style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
       />
 
