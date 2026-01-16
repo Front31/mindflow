@@ -10,6 +10,7 @@ import ReactFlow, {
   Connection,
   ConnectionLineType,
   Edge,
+  MarkerType,
   ReactFlowProvider,
   SelectionMode,
   useReactFlow,
@@ -17,7 +18,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import CustomNode from './CustomNode';
-import Toolbar from './Toolbar';
+import Toolbar, { EdgePreset } from './Toolbar';
 import ShareModal from './ShareModal';
 import { useMindFlowStore } from '@/lib/store';
 
@@ -53,38 +54,99 @@ function ColorModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative glass-elevated rounded-3xl p-6 w-[360px]">
         <div className="text-base font-semibold mb-4">Node color</div>
-
         <div className="flex items-center gap-3 mb-5">
-          <input
-            type="color"
-            value={hex}
-            onChange={(e) => setHex(e.target.value)}
-            className="w-14 h-10 bg-transparent border-0 p-0"
-          />
-          <input
-            value={hex}
-            onChange={(e) => setHex(e.target.value)}
-            className="flex-1 rounded-xl px-3 py-2 bg-white/20 dark:bg-white/10 border border-white/20 outline-none"
-          />
+          <input type="color" value={hex} onChange={(e) => setHex(e.target.value)} className="w-14 h-10 bg-transparent border-0 p-0" />
+          <input value={hex} onChange={(e) => setHex(e.target.value)} className="flex-1 rounded-xl px-3 py-2 bg-white/20 dark:bg-white/10 border border-white/20 outline-none" />
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button className="rounded-2xl px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10" onClick={onClose}>Cancel</button>
+          <button className="rounded-2xl px-4 py-2 text-sm bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15" onClick={() => onApply(hex)}>Apply to selected</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EdgeMenuModal({
+  isOpen,
+  onClose,
+  preset,
+  onSetPreset,
+  onApplyToSelectedEdges,
+  hasSelectedEdges,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  preset: EdgePreset;
+  onSetPreset: (p: EdgePreset) => void;
+  onApplyToSelectedEdges: (p: EdgePreset) => void;
+  hasSelectedEdges: boolean;
+}) {
+  if (!isOpen) return null;
+
+  const btn = (active: boolean) =>
+    `rounded-2xl px-3 py-2 text-sm border transition ${
+      active
+        ? 'bg-black/10 dark:bg-white/10 border-white/30'
+        : 'bg-white/10 dark:bg-white/5 border-white/15 hover:bg-black/5 dark:hover:bg-white/10'
+    }`;
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative glass-elevated rounded-3xl p-6 w-[420px]">
+        <div className="text-base font-semibold mb-4">Line style</div>
+
+        <div className="mb-4">
+          <div className="text-sm font-medium mb-2">Type</div>
+          <div className="flex gap-2 flex-wrap">
+            <button className={btn(preset.kind === 'orthogonal')} onClick={() => onSetPreset({ ...preset, kind: 'orthogonal' })}>Orthogonal</button>
+            <button className={btn(preset.kind === 'straight')} onClick={() => onSetPreset({ ...preset, kind: 'straight' })}>Straight</button>
+            <button className={btn(preset.kind === 'curved')} onClick={() => onSetPreset({ ...preset, kind: 'curved' })}>Curved</button>
+          </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2">
-          <button
-            className="rounded-2xl px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
-            onClick={onClose}
-          >
-            Cancel
+        <div className="mb-6">
+          <div className="text-sm font-medium mb-2">Stroke</div>
+          <div className="flex gap-2 flex-wrap">
+            <button className={btn(!preset.dashed)} onClick={() => onSetPreset({ ...preset, dashed: false })}>Solid</button>
+            <button className={btn(preset.dashed)} onClick={() => onSetPreset({ ...preset, dashed: true })}>Dashed</button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <button className="rounded-2xl px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10" onClick={onClose}>
+            Close
           </button>
+
           <button
-            className="rounded-2xl px-4 py-2 text-sm bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
-            onClick={() => onApply(hex)}
+            disabled={!hasSelectedEdges}
+            className={`rounded-2xl px-4 py-2 text-sm ${
+              hasSelectedEdges
+                ? 'bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15'
+                : 'opacity-40 cursor-not-allowed bg-black/10 dark:bg-white/10'
+            }`}
+            onClick={() => onApplyToSelectedEdges(preset)}
+            title={hasSelectedEdges ? 'Apply to selected edges' : 'Select an edge first'}
           >
-            Apply to selected
+            Apply to selected lines
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+function toEdgeType(kind: EdgePreset['kind']): Edge['type'] {
+  if (kind === 'orthogonal') return 'step';
+  if (kind === 'straight') return 'straight';
+  return 'smoothstep';
+}
+
+function toConnectionLineType(kind: EdgePreset['kind']): ConnectionLineType {
+  if (kind === 'orthogonal') return ConnectionLineType.Step;
+  if (kind === 'straight') return ConnectionLineType.Straight;
+  return ConnectionLineType.Bezier;
 }
 
 function CanvasContent({ roomId }: { roomId: string }) {
@@ -94,8 +156,9 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const [showShare, setShowShare] = useState(false);
   const [showColor, setShowColor] = useState(false);
 
-  // default for NEW edges: solid vs dashed
-  const [edgeDashed, setEdgeDashed] = useState(false);
+  // ✅ edge preset + menu
+  const [edgePreset, setEdgePreset] = useState<EdgePreset>({ kind: 'orthogonal', dashed: false });
+  const [showEdgeMenu, setShowEdgeMenu] = useState(false);
 
   // Selection
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -109,19 +172,18 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const setEdges = useMindFlowStore((s) => s.setEdges);
   const resetRoom = useMindFlowStore((s) => s.resetRoom);
 
-  // Collaboration (poll + save)
+  // Collaboration
   const roomRevRef = useRef<number>(0);
   const applyingRemoteRef = useRef<boolean>(false);
   const saveTimerRef = useRef<any>(null);
 
-  // Clipboard (tab fallback) + OS clipboard (cross-tab)
+  // Clipboard
   const clipboardRef = useRef<{ nodes: any[]; edges: Edge[] } | null>(null);
   const pasteOffsetRef = useRef(0);
 
   // Upload input
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Theme init
   useEffect(() => {
     const isDarkMode =
       localStorage.getItem('theme') === 'dark' ||
@@ -132,7 +194,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     if (isDarkMode) document.documentElement.classList.add('dark');
   }, []);
 
-  // Initial load
+  // Load DB
   useEffect(() => {
     let cancelled = false;
 
@@ -151,9 +213,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         } else {
           roomRevRef.current = data?.rev ?? 0;
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
     })();
 
     return () => {
@@ -176,15 +236,13 @@ function CanvasContent({ roomId }: { roomId: string }) {
           roomRevRef.current = serverRev;
           applyingRemoteRef.current = false;
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
     }, 800);
 
     return () => clearInterval(t);
   }, [roomId, setNodes, setEdges]);
 
-  // Debounced save
+  // Save
   useEffect(() => {
     if (applyingRemoteRef.current) return;
 
@@ -199,41 +257,67 @@ function CanvasContent({ roomId }: { roomId: string }) {
         });
         const out = await res.json();
         if (out?.rev) roomRevRef.current = out.rev;
-      } catch {
-        // ignore
-      }
+      } catch {}
     }, 200);
 
     return () => clearTimeout(saveTimerRef.current);
   }, [nodes, edges, roomId]);
 
-  // ReactFlow changes -> store
+  // Changes
   const onNodesChange = useCallback(
     (changes: any) => setNodes(applyNodeChanges(changes, nodes)),
     [nodes, setNodes]
   );
-
   const onEdgesChange = useCallback(
     (changes: any) => setEdges(applyEdgeChanges(changes, edges)),
     [edges, setEdges]
   );
 
-  // DRAW.IO-like: orthogonal edges (Step) + easy connect
+  // Connect: apply preset + arrowhead
   const onConnect = useCallback(
     (params: Connection) => {
+      const type = toEdgeType(edgePreset.kind);
+      const style = edgePreset.dashed
+        ? { strokeWidth: 2, strokeDasharray: '6 6' }
+        : { strokeWidth: 2 };
+
       const newEdge: Edge = {
         ...params,
         id: `e${params.source}-${params.sourceHandle ?? 's'}-${params.target}-${params.targetHandle ?? 't'}-${Date.now()}`,
-        type: 'step',
+        type,
         animated: false,
-        style: edgeDashed
-          ? { strokeWidth: 2, strokeDasharray: '6 6' }
-          : { strokeWidth: 2 },
+        style,
+        markerEnd: { type: MarkerType.ArrowClosed },
       } as Edge;
 
       setEdges(addEdgeRF(newEdge, edges));
     },
-    [edges, setEdges, edgeDashed]
+    [edges, setEdges, edgePreset]
+  );
+
+  // Apply preset to selected edges (after the fact)
+  const applyPresetToSelectedEdges = useCallback(
+    (preset: EdgePreset) => {
+      const idSet = new Set(selectedEdgeIds);
+      const type = toEdgeType(preset.kind);
+      const style = preset.dashed
+        ? { strokeWidth: 2, strokeDasharray: '6 6' }
+        : { strokeWidth: 2 };
+
+      setEdges(
+        edges.map((e) =>
+          idSet.has(e.id)
+            ? {
+                ...e,
+                type,
+                style: { ...(e.style as any), ...style },
+                markerEnd: { type: MarkerType.ArrowClosed },
+              }
+            : e
+        )
+      );
+    },
+    [edges, setEdges, selectedEdgeIds]
   );
 
   // Toolbar actions
@@ -285,7 +369,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setSelectedEdgeIds([]);
   }, [canDelete, edges, nodes, selectedEdgeIds, selectedNodeIds, setEdges, setNodes]);
 
-  // Copy (tab + OS clipboard)
+  // Copy / Paste (cross-tab)
   const handleCopy = useCallback(async () => {
     const selNodes = nodes.filter((n) => selectedNodeIds.includes(n.id));
     if (selNodes.length === 0) return;
@@ -296,39 +380,25 @@ function CanvasContent({ roomId }: { roomId: string }) {
     clipboardRef.current = { nodes: selNodes, edges: selEdges };
     pasteOffsetRef.current = 0;
 
-    const payload = {
-      app: 'mindflow',
-      version: 1,
-      type: 'selection',
-      state: { nodes: selNodes, edges: selEdges },
-      copiedAt: new Date().toISOString(),
-    };
+    const payload = { app: 'mindflow', version: 1, type: 'selection', state: { nodes: selNodes, edges: selEdges } };
 
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [nodes, edges, selectedNodeIds]);
 
-  // Paste (OS clipboard first)
   const handlePaste = useCallback(async () => {
     let clip: { nodes: any[]; edges: Edge[] } | null = null;
 
     try {
       const text = await navigator.clipboard.readText();
       const json = JSON.parse(text);
-
       if (json?.app === 'mindflow' && json?.type === 'selection' && json?.state) {
-        const newNodes = json.state.nodes;
-        const newEdges = json.state.edges;
-        if (Array.isArray(newNodes) && Array.isArray(newEdges)) {
-          clip = { nodes: newNodes, edges: newEdges };
+        if (Array.isArray(json.state.nodes) && Array.isArray(json.state.edges)) {
+          clip = { nodes: json.state.nodes, edges: json.state.edges };
         }
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     if (!clip) clip = clipboardRef.current;
     if (!clip) return;
@@ -343,12 +413,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     const newNodes = clip.nodes.map((n) => {
       const newId = `${n.id}-copy-${now}-${rand()}`;
       idMap.set(n.id, newId);
-      return {
-        ...n,
-        id: newId,
-        position: { x: (n.position?.x ?? 0) + off, y: (n.position?.y ?? 0) + off },
-        selected: true,
-      };
+      return { ...n, id: newId, position: { x: (n.position?.x ?? 0) + off, y: (n.position?.y ?? 0) + off }, selected: true };
     });
 
     const newEdges: Edge[] = clip.edges.map((e) => ({
@@ -368,40 +433,21 @@ function CanvasContent({ roomId }: { roomId: string }) {
 
   // Global keys
   const deleteSelectedRef = useRef<() => void>(() => {});
-  useEffect(() => {
-    deleteSelectedRef.current = handleDeleteSelected;
-  }, [handleDeleteSelected]);
+  useEffect(() => { deleteSelectedRef.current = handleDeleteSelected; }, [handleDeleteSelected]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
-      const isTyping =
-        el &&
-        (el.tagName === 'INPUT' ||
-          el.tagName === 'TEXTAREA' ||
-          (el as any).isContentEditable);
-
+      const isTyping = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as any).isContentEditable);
       if (isTyping) return;
 
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const ctrl = isMac ? e.metaKey : e.ctrlKey;
 
-      if (ctrl && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        handleCopy();
-        return;
-      }
-      if (ctrl && e.key.toLowerCase() === 'v') {
-        e.preventDefault();
-        handlePaste();
-        return;
-      }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteSelectedRef.current?.();
-      }
+      if (ctrl && e.key.toLowerCase() === 'c') { e.preventDefault(); handleCopy(); return; }
+      if (ctrl && e.key.toLowerCase() === 'v') { e.preventDefault(); handlePaste(); return; }
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedRef.current?.(); }
     };
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleCopy, handlePaste]);
@@ -414,57 +460,39 @@ function CanvasContent({ roomId }: { roomId: string }) {
 
   // Download / Upload
   const handleDownloadFile = useCallback(() => {
-    const payload = {
-      version: 1,
-      app: 'mindflow',
-      roomId,
-      savedAt: new Date().toISOString(),
-      state: { nodes, edges },
-    };
-
+    const payload = { version: 1, app: 'mindflow', roomId, savedAt: new Date().toISOString(), state: { nodes, edges } };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href = url;
     a.download = `mindflow-${roomId}.mindflow.json`;
     a.click();
-
     URL.revokeObjectURL(url);
   }, [nodes, edges, roomId]);
 
-  const handleUploadFileClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+  const handleUploadFileClick = useCallback(() => { fileInputRef.current?.click(); }, []);
 
-  const handleUploadFile = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const json = JSON.parse(text);
-
-        const state = json?.state ?? json;
-        const newNodes = state?.nodes;
-        const newEdges = state?.edges;
-
-        if (!Array.isArray(newNodes) || !Array.isArray(newEdges)) {
-          alert('Invalid file. Expected { state: { nodes: [], edges: [] } }.');
-          return;
-        }
-
-        setNodes(newNodes);
-        setEdges(newEdges);
-      } catch {
-        alert('Could not read file. Is it a valid MindFlow JSON export?');
-      } finally {
-        e.target.value = '';
+  const handleUploadFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const state = json?.state ?? json;
+      if (!Array.isArray(state?.nodes) || !Array.isArray(state?.edges)) {
+        alert('Invalid file. Expected { state: { nodes: [], edges: [] } }.');
+        return;
       }
-    },
-    [setNodes, setEdges]
-  );
+      setNodes(state.nodes);
+      setEdges(state.edges);
+    } catch {
+      alert('Could not read file. Is it a valid MindFlow JSON export?');
+    } finally {
+      e.target.value = '';
+    }
+  }, [setNodes, setEdges]);
+
+  const hasSelectedEdges = selectedEdgeIds.length > 0;
 
   return (
     <div className="w-full h-screen relative overflow-hidden canvas-cursor">
@@ -480,31 +508,31 @@ function CanvasContent({ roomId }: { roomId: string }) {
         fitView
         minZoom={0.1}
         maxZoom={2}
-        // draw.io-ish: orthogonal connection preview
-        connectionLineType={ConnectionLineType.Step}
-        // makes connect easier (klick source, klick target)
+
+        // draw.io-ish connection behavior
+        connectionLineType={toConnectionLineType(edgePreset.kind)}
         connectOnClick
-        // big “magnet radius”
-        connectionRadius={80}
-        // allow re-attaching edges (draw.io feel)
+        connectionRadius={120}
         edgesUpdatable
-        edgeUpdaterRadius={28}
+        edgeUpdaterRadius={36}
+
         defaultEdgeOptions={{
-          type: 'step',
+          type: toEdgeType(edgePreset.kind),
           animated: false,
           style: { strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed },
         }}
-        // Interaction model
+
         panOnDrag={[2]}
         selectionOnDrag
         selectionMode={SelectionMode.Partial}
         onPaneContextMenu={(e) => e.preventDefault()}
         elementsSelectable
         edgesFocusable
+
         onSelectionChange={({ nodes: selNodes, edges: selEdges }) => {
           const nextNodeIds = (selNodes ?? []).map((n) => n.id).sort();
           const nextEdgeIds = (selEdges ?? []).map((e) => e.id).sort();
-
           setSelectedNodeIds((prev) => (sameIdList(prev, nextNodeIds) ? prev : nextNodeIds));
           setSelectedEdgeIds((prev) => (sameIdList(prev, nextEdgeIds) ? prev : nextEdgeIds));
         }}
@@ -515,7 +543,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
           nodeColor={(node) => {
             const hex = (node as any).data?.colorHex;
             if (hex) return hex;
-
             const color = (node as any).data?.color;
             const colors: Record<string, string> = {
               blue: '#3b82f6',
@@ -540,8 +567,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
         onDownloadFile={handleDownloadFile}
         onUploadFile={handleUploadFileClick}
         onColor={() => setShowColor(true)}
-        edgeDashed={edgeDashed}
-        onToggleDashed={() => setEdgeDashed((v) => !v)}
+        edgePreset={edgePreset}
+        onOpenEdgeMenu={() => setShowEdgeMenu(true)}
         onToggleTheme={handleToggleTheme}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
@@ -566,6 +593,18 @@ function CanvasContent({ roomId }: { roomId: string }) {
           setShowColor(false);
           applyColorToSelected(hex);
         }}
+      />
+
+      <EdgeMenuModal
+        isOpen={showEdgeMenu}
+        onClose={() => setShowEdgeMenu(false)}
+        preset={edgePreset}
+        onSetPreset={setEdgePreset}
+        onApplyToSelectedEdges={(p) => {
+          applyPresetToSelectedEdges(p);
+          setShowEdgeMenu(false);
+        }}
+        hasSelectedEdges={hasSelectedEdges}
       />
     </div>
   );
