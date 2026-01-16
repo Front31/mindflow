@@ -473,7 +473,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     const maxHeight = 8000;
   
     // 3) Transform berechnen, der alle Nodes in maxWidth/maxHeight einpasst
-    const [tx, ty, tScale] = getTransformForBounds(bounds, maxWidth, maxHeight, padding);
+    const [tx, ty, tScale] = getTransformForBounds(bounds, maxWidth, maxHeight, 0.1, 2, padding);
   
     // 4) Export (viewport) mit überschriebenem transformStyle
     try {
