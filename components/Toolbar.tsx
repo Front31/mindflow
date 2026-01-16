@@ -4,15 +4,16 @@ import { memo } from 'react';
 import {
   PlusCircle,
   Trash2,
-  Share2,
-  Download,
-  Palette,
-  Moon,
-  Sun,
   ZoomIn,
   ZoomOut,
   Maximize2,
   RefreshCw,
+  Share2,
+  Download,
+  Upload,
+  Palette,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -25,7 +26,9 @@ interface ToolbarProps {
   onClearCanvas: () => void;
   onShare: () => void;
 
-  onExport: () => void;
+  onDownloadFile: () => void;
+  onUploadFile: () => void;
+
   onColor: () => void;
 
   onToggleTheme: () => void;
@@ -41,7 +44,8 @@ function Toolbar({
   canDelete,
   onClearCanvas,
   onShare,
-  onExport,
+  onDownloadFile,
+  onUploadFile,
   onColor,
   onToggleTheme,
   onZoomIn,
@@ -62,6 +66,7 @@ function Toolbar({
       className="glass-elevated fixed top-6 left-1/2 -translate-x-1/2 z-50 rounded-3xl px-6 py-3"
     >
       <div className="flex items-center gap-2">
+        {/* Add Node */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
@@ -73,6 +78,7 @@ function Toolbar({
           <PlusCircle className="w-5 h-5" />
         </motion.button>
 
+        {/* Color */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
@@ -82,8 +88,9 @@ function Toolbar({
           title="Color (selected nodes)"
         >
           <Palette className="w-5 h-5" />
-        </motion.button>
+        </motion.button>      
         
+        {/* Delete */}
         <motion.button
           variants={buttonVariants}
           whileHover={canDelete ? 'hover' : undefined}
@@ -102,6 +109,7 @@ function Toolbar({
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
 
+        {/* Zoom */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
@@ -137,6 +145,19 @@ function Toolbar({
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
 
+        {/* Reset */}
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
+          onClick={onClearCanvas}
+          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          title="Reset Canvas"
+        >
+          <RefreshCw className="w-5 h-5" />
+        </motion.button>
+
+        {/* Share */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
@@ -148,19 +169,32 @@ function Toolbar({
           <Share2 className="w-5 h-5" />
         </motion.button>
 
+        {/* Download / Upload */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
           whileTap="tap"
-          onClick={onExport}
+          onClick={onDownloadFile}
           className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          title="Export PNG"
+          title="Download .mindflow.json"
         >
           <Download className="w-5 h-5" />
         </motion.button>
 
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
+          onClick={onUploadFile}
+          className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          title="Upload .mindflow.json"
+        >
+          <Upload className="w-5 h-5" />
+        </motion.button>
+
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
 
+        {/* Theme */}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
