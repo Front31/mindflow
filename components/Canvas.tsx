@@ -340,13 +340,16 @@ function CanvasContent({ roomId }: { roomId: string }) {
 
   // ✅ Export draw.io-style: whole map bounds, no minimap/toolbar, high-res
   const exportPng = async (opts: { includeBackground: boolean; theme: 'current' | 'light' | 'dark' }) => {
-    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
+    const nodesLayer = document.querySelector('.react-flow__nodes') as HTMLElement | null;
+    const edgesLayer = document.querySelector('.react-flow__edges') as HTMLElement | null;
+    const labelsLayer = document.querySelector('.react-flow__edgelabel-renderer') as HTMLElement | null;
     const background = document.querySelector('.react-flow__background') as HTMLElement | null;
-    if (!viewport) return;
   
+    if (!nodesLayer || !edgesLayer) return;
+  
+    // Theme override
     const html = document.documentElement;
     const hadDark = html.classList.contains('dark');
-  
     if (opts.theme === 'dark') html.classList.add('dark');
     if (opts.theme === 'light') html.classList.remove('dark');
   
@@ -357,8 +360,8 @@ function CanvasContent({ roomId }: { roomId: string }) {
           : '#f7f7ff'
         : 'transparent';
   
-    // bounds
-    const pad = 120;
+    // Bounds (aus Node-Daten, zuverlässig für große Maps)
+    const pad = 140;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   
     for (const n of nodes) {
@@ -389,8 +392,11 @@ function CanvasContent({ roomId }: { roomId: string }) {
   
     const exportW = Math.ceil((maxX - minX) + pad * 2);
     const exportH = Math.ceil((maxY - minY) + pad * 2);
+  
+    // Hohe Schärfe (wie draw.io) – Datei wird größer
     const pixelRatio = 4;
   
+    // Offscreen Wrapper
     const wrapper = document.createElement('div');
     wrapper.style.position = 'fixed';
     wrapper.style.left = '-10000px';
@@ -400,6 +406,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     wrapper.style.overflow = 'hidden';
     wrapper.style.background = bgColor;
   
+    // Optional Grid/Background
     if (opts.includeBackground && background) {
       const bgClone = background.cloneNode(true) as HTMLElement;
       bgClone.style.position = 'absolute';
@@ -410,13 +417,26 @@ function CanvasContent({ roomId }: { roomId: string }) {
       wrapper.appendChild(bgClone);
     }
   
-    const vpClone = viewport.cloneNode(true) as HTMLElement;
-    vpClone.style.transformOrigin = '0 0';
+    // Group, die wir passend verschieben
+    const group = document.createElement('div');
+    group.style.position = 'absolute';
+    group.style.left = '0';
+    group.style.top = '0';
+    group.style.transformOrigin = '0 0';
+    group.style.transform = `translate(${(-minX + pad)}px, ${(-minY + pad)}px)`;
   
-    const tx = -minX + pad;
-    const ty = -minY + pad;
-    vpClone.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+    // Clone layers (OHNE Viewport-Transform!)
+    const edgesClone = edgesLayer.cloneNode(true) as HTMLElement;
+    const nodesClone = nodesLayer.cloneNode(true) as HTMLElement;
+    group.appendChild(edgesClone);
+    group.appendChild(nodesClone);
   
+    if (labelsLayer) {
+      const labelsClone = labelsLayer.cloneNode(true) as HTMLElement;
+      group.appendChild(labelsClone);
+    }
+  
+    // Hide selection/handles in export
     const styleTag = document.createElement('style');
     styleTag.textContent = `
       .react-flow__minimap, .react-flow__controls, .react-flow__panel { display: none !important; }
@@ -425,7 +445,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     `;
     wrapper.appendChild(styleTag);
   
-    wrapper.appendChild(vpClone);
+    wrapper.appendChild(group);
     document.body.appendChild(wrapper);
   
     try {
@@ -449,6 +469,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
       }
     }
   };
+
 
 
   return (
