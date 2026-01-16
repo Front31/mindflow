@@ -1,6 +1,7 @@
 'use client';
 
 import { memo } from 'react';
+import { Palette } from 'lucide-react';
 import {
   PlusCircle,
   Trash2,
