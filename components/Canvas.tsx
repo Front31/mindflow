@@ -8,6 +8,7 @@ import ReactFlow, {
   applyEdgeChanges,
   applyNodeChanges,
   Connection,
+  ConnectionLineType,
   Edge,
   ReactFlowProvider,
   SelectionMode,
@@ -93,10 +94,10 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const [showShare, setShowShare] = useState(false);
   const [showColor, setShowColor] = useState(false);
 
-  // NEW: edge style toggle (default for NEW edges)
+  // default for NEW edges: solid vs dashed
   const [edgeDashed, setEdgeDashed] = useState(false);
 
-  // Selection state
+  // Selection
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
 
@@ -113,7 +114,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const applyingRemoteRef = useRef<boolean>(false);
   const saveTimerRef = useRef<any>(null);
 
-  // Clipboard (tab fallback) + OS clipboard cross-tab
+  // Clipboard (tab fallback) + OS clipboard (cross-tab)
   const clipboardRef = useRef<{ nodes: any[]; edges: Edge[] } | null>(null);
   const pasteOffsetRef = useRef(0);
 
@@ -131,7 +132,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     if (isDarkMode) document.documentElement.classList.add('dark');
   }, []);
 
-  // Initial load from DB
+  // Initial load
   useEffect(() => {
     let cancelled = false;
 
@@ -217,15 +218,17 @@ function CanvasContent({ roomId }: { roomId: string }) {
     [edges, setEdges]
   );
 
-  // NEW edges use current edgeDashed preference
+  // DRAW.IO-like: orthogonal edges (Step) + easy connect
   const onConnect = useCallback(
     (params: Connection) => {
       const newEdge: Edge = {
         ...params,
         id: `e${params.source}-${params.sourceHandle ?? 's'}-${params.target}-${params.targetHandle ?? 't'}-${Date.now()}`,
-        type: 'smoothstep',
+        type: 'step',
         animated: false,
-        style: edgeDashed ? { strokeWidth: 2, strokeDasharray: '6 6' } : { strokeWidth: 2 },
+        style: edgeDashed
+          ? { strokeWidth: 2, strokeDasharray: '6 6' }
+          : { strokeWidth: 2 },
       } as Edge;
 
       setEdges(addEdgeRF(newEdge, edges));
@@ -304,11 +307,11 @@ function CanvasContent({ roomId }: { roomId: string }) {
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload));
     } catch {
-      // ignore (permissions)
+      // ignore
     }
   }, [nodes, edges, selectedNodeIds]);
 
-  // Paste (OS clipboard cross-tab first, fallback to in-tab clipboard)
+  // Paste (OS clipboard first)
   const handlePaste = useCallback(async () => {
     let clip: { nodes: any[]; edges: Edge[] } | null = null;
 
@@ -363,7 +366,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setEdges([...clearedEdges, ...newEdges]);
   }, [nodes, edges, setNodes, setEdges]);
 
-  // Global keys: delete + copy/paste
+  // Global keys
   const deleteSelectedRef = useRef<() => void>(() => {});
   useEffect(() => {
     deleteSelectedRef.current = handleDeleteSelected;
@@ -477,8 +480,17 @@ function CanvasContent({ roomId }: { roomId: string }) {
         fitView
         minZoom={0.1}
         maxZoom={2}
+        // draw.io-ish: orthogonal connection preview
+        connectionLineType={ConnectionLineType.Step}
+        // makes connect easier (klick source, klick target)
+        connectOnClick
+        // big “magnet radius”
+        connectionRadius={80}
+        // allow re-attaching edges (draw.io feel)
+        edgesUpdatable
+        edgeUpdaterRadius={28}
         defaultEdgeOptions={{
-          type: 'smoothstep',
+          type: 'step',
           animated: false,
           style: { strokeWidth: 2 },
         }}
@@ -489,8 +501,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
         onPaneContextMenu={(e) => e.preventDefault()}
         elementsSelectable
         edgesFocusable
-        edgesUpdatable={false}
-        connectionRadius={40}
         onSelectionChange={({ nodes: selNodes, edges: selEdges }) => {
           const nextNodeIds = (selNodes ?? []).map((n) => n.id).sort();
           const nextEdgeIds = (selEdges ?? []).map((e) => e.id).sort();
