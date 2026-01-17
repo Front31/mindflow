@@ -139,39 +139,109 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
   const MagnetHandles = () => (
     <>
-      {/* LEFT magnets (30-70%) */}
+      {/* LEFT (30–70%) */}
       {LR.map((p) => (
         <span key={`L-${p}`}>
-          <Handle id={`t-left-${p}`} type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
-          <Handle id={`s-left-${p}`} type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle
+            id={`t-left-${p}`}
+            type="target"
+            position={Position.Left}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`s-left-${p}`}
+            type="source"
+            position={Position.Left}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+  
+          {/* 👁 sichtbarer Hover-Dot */}
+          <span
+            className="mf-dot mf-hover-dot"
+            style={{ left: '-6px', top: `${p}%` }}
+          />
         </span>
       ))}
-
-      {/* RIGHT magnets (30-70%) */}
+  
+      {/* RIGHT (30–70%) */}
       {LR.map((p) => (
         <span key={`R-${p}`}>
-          <Handle id={`t-right-${p}`} type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
-          <Handle id={`s-right-${p}`} type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle
+            id={`t-right-${p}`}
+            type="target"
+            position={Position.Right}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`s-right-${p}`}
+            type="source"
+            position={Position.Right}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+  
+          <span
+            className="mf-dot mf-hover-dot"
+            style={{ right: '-6px', top: `${p}%` }}
+          />
         </span>
       ))}
-
-      {/* TOP magnets (10-90%) */}
+  
+      {/* TOP (10–90%) */}
       {TB.map((p) => (
         <span key={`T-${p}`}>
-          <Handle id={`t-top-${p}`} type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
-          <Handle id={`s-top-${p}`} type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle
+            id={`t-top-${p}`}
+            type="target"
+            position={Position.Top}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`s-top-${p}`}
+            type="source"
+            position={Position.Top}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+  
+          <span
+            className="mf-dot mf-hover-dot"
+            style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
         </span>
       ))}
-
-      {/* BOTTOM magnets (10-90%) */}
+  
+      {/* BOTTOM (10–90%) */}
       {TB.map((p) => (
         <span key={`B-${p}`}>
-          <Handle id={`t-bottom-${p}`} type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
-          <Handle id={`s-bottom-${p}`} type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle
+            id={`t-bottom-${p}`}
+            type="target"
+            position={Position.Bottom}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`s-bottom-${p}`}
+            type="source"
+            position={Position.Bottom}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+  
+          <span
+            className="mf-dot mf-hover-dot"
+            style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
         </span>
       ))}
     </>
   );
+
 
   return (
     <div
@@ -193,30 +263,34 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     >
       {/* ✅ Critical: Hide ALL ReactFlow handle visuals completely */}
       <style>{`
-        .react-flow__handle { opacity: 0 !important; background: transparent !important; border: 0 !important; }
-        .mf-dot { opacity: 0; transition: opacity 160ms ease; }
-        .group:hover .mf-dot { opacity: 1; }
+        .react-flow__handle {
+          opacity: 0 !important;
+          background: transparent !important;
+          border: 0 !important;
+        }
+      
+        .mf-hover-dot {
+          position: absolute;
+          width: 7px;
+          height: 7px;
+          border-radius: 9999px;
+          background: ${accent};
+          border: 2px solid rgba(255,255,255,0.9);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 120ms ease, transform 120ms ease;
+        }
+      
+        .group:hover .mf-hover-dot {
+          opacity: 1;
+        }
+      
+        .react-flow__node.selected .mf-hover-dot {
+          opacity: 1;
+        }
       `}</style>
 
       <MagnetHandles />
-
-      {/* Visible dots only at center of each side (clean UI) */}
-      <span
-        className={`mf-dot ${visibleDotClass}`}
-        style={{ left: '-6px', top: '50%', transform: 'translateY(-50%)', background: accent }}
-      />
-      <span
-        className={`mf-dot ${visibleDotClass}`}
-        style={{ right: '-6px', top: '50%', transform: 'translateY(-50%)', background: accent }}
-      />
-      <span
-        className={`mf-dot ${visibleDotClass}`}
-        style={{ top: '-6px', left: '50%', transform: 'translateX(-50%)', background: accent }}
-      />
-      <span
-        className={`mf-dot ${visibleDotClass}`}
-        style={{ bottom: '-6px', left: '50%', transform: 'translateX(-50%)', background: accent }}
-      />
 
       <div className="flex items-center justify-center gap-3 h-full">
         {data.emoji && <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>}
