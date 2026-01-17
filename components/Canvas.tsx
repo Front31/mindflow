@@ -487,7 +487,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
         // draw.io-ish connection behavior
         connectionLineType={toConnectionLineType(edgePreset.kind)}
         connectOnClick
-        connectionRadius={140}
+        connectionRadius={180}
         edgesUpdatable
         edgeUpdaterRadius={36}
 
