@@ -52,21 +52,19 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [handleBlur, data.label]
   );
 
-  // draw.io-like: visible dots only on hover/selected
-  const dotVisibility = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
-
-  // small visible dot
+  // ===== Handles =====
+  // Visible dot: small
   const visibleHandleClass =
-    '!w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45';
+    'mf-dot !w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45 !bg-white dark:!bg-gray-900';
 
-  // big invisible magnet area
+  // Invisible magnet: big, to make connecting easy from "anywhere"
   const hitboxHandleClass =
-    '!w-12 !h-12 !rounded-full !border-0 !bg-transparent !shadow-none';
+    '!w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
 
   const accentStyle = { background: accent };
   const visibleNoPointer = { pointerEvents: 'none' as const };
 
-  // Resize (unchanged)
+  // Resize
   const startResize = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
@@ -138,116 +136,41 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [id, setNodes]
   );
 
-  // Helper: render 3 points per side
-  const PCTS = [25, 50, 75];
+  /**
+   * "Whole border connect" approximation:
+   * Place many invisible magnet handles along each edge.
+   * Visible dots are only 4 (center of each side) and only show on hover/selected.
+   */
+  const PCTS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
 
-  const SidePoints = () => (
+  const MagnetHandles = () => (
     <>
-      {/* LEFT points (top:25/50/75) */}
+      {/* LEFT magnets (top %) */}
       {PCTS.map((p) => (
         <span key={`L-${p}`}>
-          <Handle
-            id={`t-left-${p}`}
-            type="target"
-            position={Position.Left}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`s-left-${p}`}
-            type="source"
-            position={Position.Left}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`v-left-${p}`}
-            type="target"
-            position={Position.Left}
-            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-            style={{ ...accentStyle, top: `${p}%`, ...visibleNoPointer }}
-          />
+          <Handle id={`t-left-${p}`} type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle id={`s-left-${p}`} type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
         </span>
       ))}
-
-      {/* RIGHT points */}
+      {/* RIGHT magnets */}
       {PCTS.map((p) => (
         <span key={`R-${p}`}>
-          <Handle
-            id={`t-right-${p}`}
-            type="target"
-            position={Position.Right}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`s-right-${p}`}
-            type="source"
-            position={Position.Right}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`v-right-${p}`}
-            type="source"
-            position={Position.Right}
-            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-            style={{ ...accentStyle, top: `${p}%`, ...visibleNoPointer }}
-          />
+          <Handle id={`t-right-${p}`} type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle id={`s-right-${p}`} type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
         </span>
       ))}
-
-      {/* TOP points */}
+      {/* TOP magnets (left %) */}
       {PCTS.map((p) => (
         <span key={`T-${p}`}>
-          <Handle
-            id={`t-top-${p}`}
-            type="target"
-            position={Position.Top}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`s-top-${p}`}
-            type="source"
-            position={Position.Top}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`v-top-${p}`}
-            type="target"
-            position={Position.Top}
-            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-            style={{ ...accentStyle, left: `${p}%`, transform: 'translateX(-50%)', ...visibleNoPointer }}
-          />
+          <Handle id={`t-top-${p}`} type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle id={`s-top-${p}`} type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
-
-      {/* BOTTOM points */}
+      {/* BOTTOM magnets */}
       {PCTS.map((p) => (
         <span key={`B-${p}`}>
-          <Handle
-            id={`t-bottom-${p}`}
-            type="target"
-            position={Position.Bottom}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`s-bottom-${p}`}
-            type="source"
-            position={Position.Bottom}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`v-bottom-${p}`}
-            type="source"
-            position={Position.Bottom}
-            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-            style={{ ...accentStyle, left: `${p}%`, transform: 'translateX(-50%)', ...visibleNoPointer }}
-          />
+          <Handle id={`t-bottom-${p}`} type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle id={`s-bottom-${p}`} type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
     </>
@@ -271,7 +194,44 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      <SidePoints />
+      {/* ✅ CSS: dots hidden by default, shown on hover/selected */}
+      <style>{`
+        .mf-dot { opacity: 0; transition: opacity 160ms ease; }
+        .group:hover .mf-dot { opacity: 1; }
+        .react-flow__node.selected .mf-dot { opacity: 1; }
+      `}</style>
+
+      <MagnetHandles />
+
+      {/* Visible center dots only (clean!) */}
+      <Handle
+        id="v-left"
+        type="target"
+        position={Position.Left}
+        className={visibleHandleClass}
+        style={{ ...accentStyle, top: '50%', ...visibleNoPointer }}
+      />
+      <Handle
+        id="v-right"
+        type="source"
+        position={Position.Right}
+        className={visibleHandleClass}
+        style={{ ...accentStyle, top: '50%', ...visibleNoPointer }}
+      />
+      <Handle
+        id="v-top"
+        type="target"
+        position={Position.Top}
+        className={visibleHandleClass}
+        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
+      />
+      <Handle
+        id="v-bottom"
+        type="source"
+        position={Position.Bottom}
+        className={visibleHandleClass}
+        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
+      />
 
       <div className="flex items-center justify-center gap-3 h-full">
         {data.emoji && <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>}
