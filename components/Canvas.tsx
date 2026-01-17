@@ -10,7 +10,6 @@ import ReactFlow, {
   Connection,
   ConnectionLineType,
   Edge,
-  MarkerType,
   ReactFlowProvider,
   SelectionMode,
   useReactFlow,
@@ -156,15 +155,12 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const [showShare, setShowShare] = useState(false);
   const [showColor, setShowColor] = useState(false);
 
-  // ✅ edge preset + menu
   const [edgePreset, setEdgePreset] = useState<EdgePreset>({ kind: 'orthogonal', dashed: false });
   const [showEdgeMenu, setShowEdgeMenu] = useState(false);
 
-  // Selection
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
 
-  // Store
   const nodes = useMindFlowStore((s) => s.nodes) as any[];
   const edges = useMindFlowStore((s) => s.edges) as Edge[];
   const addNode = useMindFlowStore((s) => s.addNode);
@@ -172,16 +168,13 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const setEdges = useMindFlowStore((s) => s.setEdges);
   const resetRoom = useMindFlowStore((s) => s.resetRoom);
 
-  // Collaboration
   const roomRevRef = useRef<number>(0);
   const applyingRemoteRef = useRef<boolean>(false);
   const saveTimerRef = useRef<any>(null);
 
-  // Clipboard
   const clipboardRef = useRef<{ nodes: any[]; edges: Edge[] } | null>(null);
   const pasteOffsetRef = useRef(0);
 
-  // Upload input
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -194,7 +187,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     if (isDarkMode) document.documentElement.classList.add('dark');
   }, []);
 
-  // Load DB
   useEffect(() => {
     let cancelled = false;
 
@@ -221,7 +213,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     };
   }, [roomId, setNodes, setEdges]);
 
-  // Poll
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -242,7 +233,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     return () => clearInterval(t);
   }, [roomId, setNodes, setEdges]);
 
-  // Save
   useEffect(() => {
     if (applyingRemoteRef.current) return;
 
@@ -263,7 +253,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     return () => clearTimeout(saveTimerRef.current);
   }, [nodes, edges, roomId]);
 
-  // Changes
   const onNodesChange = useCallback(
     (changes: any) => setNodes(applyNodeChanges(changes, nodes)),
     [nodes, setNodes]
@@ -273,7 +262,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     [edges, setEdges]
   );
 
-  // Connect: apply preset + arrowhead
+  // ✅ no arrows: no markerEnd anywhere
   const onConnect = useCallback(
     (params: Connection) => {
       const type = toEdgeType(edgePreset.kind);
@@ -287,7 +276,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
         type,
         animated: false,
         style,
-        markerEnd: { type: MarkerType.ArrowClosed },
       } as Edge;
 
       setEdges(addEdgeRF(newEdge, edges));
@@ -295,7 +283,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     [edges, setEdges, edgePreset]
   );
 
-  // Apply preset to selected edges (after the fact)
+  // ✅ dashed/solid fix: DO NOT merge old style (it keeps dash)
   const applyPresetToSelectedEdges = useCallback(
     (preset: EdgePreset) => {
       const idSet = new Set(selectedEdgeIds);
@@ -307,12 +295,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
       setEdges(
         edges.map((e) =>
           idSet.has(e.id)
-            ? {
-                ...e,
-                type,
-                style: { ...(e.style as any), ...style },
-                markerEnd: { type: MarkerType.ArrowClosed },
-              }
+            ? { ...e, type, style } // <- no spreading old style
             : e
         )
       );
@@ -320,7 +303,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     [edges, setEdges, selectedEdgeIds]
   );
 
-  // Toolbar actions
   const handleAddNodeFromToolbar = useCallback(() => {
     const pos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     addNode(pos);
@@ -346,7 +328,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
 
   const handleFitView = useCallback(() => fitView({ padding: 0.2, duration: 400 }), [fitView]);
 
-  // Delete selected
   const canDelete = useMemo(
     () => selectedNodeIds.length > 0 || selectedEdgeIds.length > 0,
     [selectedNodeIds, selectedEdgeIds]
@@ -369,7 +350,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setSelectedEdgeIds([]);
   }, [canDelete, edges, nodes, selectedEdgeIds, selectedNodeIds, setEdges, setNodes]);
 
-  // Copy / Paste (cross-tab)
   const handleCopy = useCallback(async () => {
     const selNodes = nodes.filter((n) => selectedNodeIds.includes(n.id));
     if (selNodes.length === 0) return;
@@ -381,10 +361,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
     pasteOffsetRef.current = 0;
 
     const payload = { app: 'mindflow', version: 1, type: 'selection', state: { nodes: selNodes, edges: selEdges } };
-
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(payload));
-    } catch {}
+    try { await navigator.clipboard.writeText(JSON.stringify(payload)); } catch {}
   }, [nodes, edges, selectedNodeIds]);
 
   const handlePaste = useCallback(async () => {
@@ -431,7 +408,6 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setEdges([...clearedEdges, ...newEdges]);
   }, [nodes, edges, setNodes, setEdges]);
 
-  // Global keys
   const deleteSelectedRef = useRef<() => void>(() => {});
   useEffect(() => { deleteSelectedRef.current = handleDeleteSelected; }, [handleDeleteSelected]);
 
@@ -448,17 +424,16 @@ function CanvasContent({ roomId }: { roomId: string }) {
       if (ctrl && e.key.toLowerCase() === 'v') { e.preventDefault(); handlePaste(); return; }
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedRef.current?.(); }
     };
+
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleCopy, handlePaste]);
 
-  // Color apply
   const applyColorToSelected = (hex: string) => {
     const idSet = new Set(selectedNodeIds);
     setNodes(nodes.map((n) => (idSet.has(n.id) ? { ...n, data: { ...n.data, colorHex: hex } } : n)));
   };
 
-  // Download / Upload
   const handleDownloadFile = useCallback(() => {
     const payload = { version: 1, app: 'mindflow', roomId, savedAt: new Date().toISOString(), state: { nodes, edges } };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -512,15 +487,14 @@ function CanvasContent({ roomId }: { roomId: string }) {
         // draw.io-ish connection behavior
         connectionLineType={toConnectionLineType(edgePreset.kind)}
         connectOnClick
-        connectionRadius={120}
+        connectionRadius={140}
         edgesUpdatable
         edgeUpdaterRadius={36}
 
         defaultEdgeOptions={{
           type: toEdgeType(edgePreset.kind),
           animated: false,
-          style: { strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { strokeWidth: 2 }, // per-edge style set on connect
         }}
 
         panOnDrag={[2]}
