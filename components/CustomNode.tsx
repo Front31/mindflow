@@ -30,6 +30,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   }, [isEditing]);
 
   const handleDoubleClick = useCallback(() => setIsEditing(true), []);
+
   const handleBlur = useCallback(() => {
     setIsEditing(false);
     const next = label.trim();
@@ -37,107 +38,229 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     else setLabel(data.label);
   }, [id, label, data.label, updateNode]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleBlur();
-    }
-    if (e.key === 'Escape') {
-      setIsEditing(false);
-      setLabel(data.label);
-    }
-  }, [handleBlur, data.label]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleBlur();
+      }
+      if (e.key === 'Escape') {
+        setIsEditing(false);
+        setLabel(data.label);
+      }
+    },
+    [handleBlur, data.label]
+  );
 
-  // Visible dots
+  // draw.io-like: visible dots only on hover/selected
+  const dotVisibility = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
+
+  // small visible dot
   const visibleHandleClass =
     '!w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45';
-  // BIG hitbox like draw.io magnet zones
+
+  // big invisible magnet area
   const hitboxHandleClass =
     '!w-12 !h-12 !rounded-full !border-0 !bg-transparent !shadow-none';
 
   const accentStyle = { background: accent };
   const visibleNoPointer = { pointerEvents: 'none' as const };
-  const dotVisibility = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
 
-  // Resize
-  const startResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  // Resize (unchanged)
+  const startResize = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
-    const state = useMindFlowStore.getState();
-    const node = state.nodes.find((n) => n.id === id);
+      const state = useMindFlowStore.getState();
+      const node = state.nodes.find((n) => n.id === id);
 
-    const startW =
-      typeof (node?.style as any)?.width === 'number'
-        ? (node!.style as any).width
-        : containerRef.current?.getBoundingClientRect().width ?? 260;
+      const startW =
+        typeof (node?.style as any)?.width === 'number'
+          ? (node!.style as any).width
+          : containerRef.current?.getBoundingClientRect().width ?? 260;
 
-    const startH =
-      typeof (node?.style as any)?.height === 'number'
-        ? (node!.style as any).height
-        : containerRef.current?.getBoundingClientRect().height ?? 100;
+      const startH =
+        typeof (node?.style as any)?.height === 'number'
+          ? (node!.style as any).height
+          : containerRef.current?.getBoundingClientRect().height ?? 100;
 
-    const startX = e.clientX;
-    const startY = e.clientY;
+      const startX = e.clientX;
+      const startY = e.clientY;
 
-    const minW = 180;
-    const minH = 74;
+      const minW = 180;
+      const minH = 74;
 
-    const onMove = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+      const onMove = (ev: PointerEvent) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
 
-      let nextW = Math.max(minW, startW + dx);
-      let nextH = Math.max(minH, startH + dy);
+        let nextW = Math.max(minW, startW + dx);
+        let nextH = Math.max(minH, startH + dy);
 
-      if (ev.shiftKey) {
-        const ratio = startW / startH;
-        if (Math.abs(dx) > Math.abs(dy)) nextH = Math.max(minH, nextW / ratio);
-        else nextW = Math.max(minW, nextH * ratio);
-      }
+        if (ev.shiftKey) {
+          const ratio = startW / startH;
+          if (Math.abs(dx) > Math.abs(dy)) nextH = Math.max(minH, nextW / ratio);
+          else nextW = Math.max(minW, nextH * ratio);
+        }
 
-      if (ev.altKey) {
-        nextW = Math.max(minW, startW + dx * 2);
-        nextH = Math.max(minH, startH + dy * 2);
-      }
+        if (ev.altKey) {
+          nextW = Math.max(minW, startW + dx * 2);
+          nextH = Math.max(minH, startH + dy * 2);
+        }
 
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        const currentNodes = useMindFlowStore.getState().nodes;
-        setNodes(currentNodes.map((n) => n.id === id ? ({
-          ...n,
-          style: { ...(n.style || {}), width: nextW, height: nextH },
-        }) : n));
-      });
-    };
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+          const currentNodes = useMindFlowStore.getState().nodes;
+          setNodes(
+            currentNodes.map((n) =>
+              n.id === id
+                ? { ...n, style: { ...(n.style || {}), width: nextW, height: nextH } }
+                : n
+            )
+          );
+        });
+      };
 
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }, [id, setNodes]);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [id, setNodes]
+  );
+
+  // Helper: render 3 points per side
+  const PCTS = [25, 50, 75];
+
+  const SidePoints = () => (
+    <>
+      {/* LEFT points (top:25/50/75) */}
+      {PCTS.map((p) => (
+        <span key={`L-${p}`}>
+          <Handle
+            id={`t-left-${p}`}
+            type="target"
+            position={Position.Left}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`s-left-${p}`}
+            type="source"
+            position={Position.Left}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`v-left-${p}`}
+            type="target"
+            position={Position.Left}
+            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
+            style={{ ...accentStyle, top: `${p}%`, ...visibleNoPointer }}
+          />
+        </span>
+      ))}
+
+      {/* RIGHT points */}
+      {PCTS.map((p) => (
+        <span key={`R-${p}`}>
+          <Handle
+            id={`t-right-${p}`}
+            type="target"
+            position={Position.Right}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`s-right-${p}`}
+            type="source"
+            position={Position.Right}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`v-right-${p}`}
+            type="source"
+            position={Position.Right}
+            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
+            style={{ ...accentStyle, top: `${p}%`, ...visibleNoPointer }}
+          />
+        </span>
+      ))}
+
+      {/* TOP points */}
+      {PCTS.map((p) => (
+        <span key={`T-${p}`}>
+          <Handle
+            id={`t-top-${p}`}
+            type="target"
+            position={Position.Top}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`s-top-${p}`}
+            type="source"
+            position={Position.Top}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`v-top-${p}`}
+            type="target"
+            position={Position.Top}
+            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
+            style={{ ...accentStyle, left: `${p}%`, transform: 'translateX(-50%)', ...visibleNoPointer }}
+          />
+        </span>
+      ))}
+
+      {/* BOTTOM points */}
+      {PCTS.map((p) => (
+        <span key={`B-${p}`}>
+          <Handle
+            id={`t-bottom-${p}`}
+            type="target"
+            position={Position.Bottom}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`s-bottom-${p}`}
+            type="source"
+            position={Position.Bottom}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`v-bottom-${p}`}
+            type="source"
+            position={Position.Bottom}
+            className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
+            style={{ ...accentStyle, left: `${p}%`, transform: 'translateX(-50%)', ...visibleNoPointer }}
+          />
+        </span>
+      ))}
+    </>
+  );
 
   return (
     <div
       ref={containerRef}
       onDoubleClick={handleDoubleClick}
       className={`
-        group relative
-        w-full h-full
-        rounded-3xl px-6 py-4
-        transition-all duration-300
-        bg-white/18 dark:bg-white/12
-        backdrop-blur-xl
-        border
-        ${selected ? 'scale-[1.03]' : ''}
+        group relative w-full h-full rounded-3xl px-6 py-4
+        transition-all duration-300 bg-white/18 dark:bg-white/12
+        backdrop-blur-xl border ${selected ? 'scale-[1.03]' : ''}
       `}
       style={{
         minWidth: 220,
@@ -148,37 +271,11 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      {/* LEFT */}
-      <Handle id="t-left" type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: '48%' }} />
-      <Handle id="s-left" type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: '52%' }} />
-      <Handle id="v-left" type="target" position={Position.Left}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-        style={{ ...accentStyle, top: '50%', ...visibleNoPointer }} />
+      <SidePoints />
 
-      {/* RIGHT */}
-      <Handle id="t-right" type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: '48%' }} />
-      <Handle id="s-right" type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: '52%' }} />
-      <Handle id="v-right" type="source" position={Position.Right}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-        style={{ ...accentStyle, top: '50%', ...visibleNoPointer }} />
-
-      {/* TOP */}
-      <Handle id="t-top" type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: '48%', transform: 'translateX(-50%)' }} />
-      <Handle id="s-top" type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: '52%', transform: 'translateX(-50%)' }} />
-      <Handle id="v-top" type="target" position={Position.Top}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }} />
-
-      {/* BOTTOM */}
-      <Handle id="t-bottom" type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: '48%', transform: 'translateX(-50%)' }} />
-      <Handle id="s-bottom" type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: '52%', transform: 'translateX(-50%)' }} />
-      <Handle id="v-bottom" type="source" position={Position.Bottom}
-        className={`${visibleHandleClass} !bg-white dark:!bg-gray-900 ${dotVisibility}`}
-        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }} />
-
-      {/* Text */}
       <div className="flex items-center justify-center gap-3 h-full">
         {data.emoji && <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>}
+
         {isEditing ? (
           <textarea
             ref={inputRef}
@@ -201,17 +298,13 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         )}
       </div>
 
-      {/* Resize */}
       <button
         onPointerDown={startResize}
         title="Resize"
         className={`
-          nodrag absolute right-2 bottom-2
-          w-4 h-4 rounded-md
-          bg-black/10 dark:bg-white/10
-          border border-white/30 dark:border-white/10
-          opacity-0 group-hover:opacity-100
-          ${selected ? 'opacity-100' : ''}
+          nodrag absolute right-2 bottom-2 w-4 h-4 rounded-md
+          bg-black/10 dark:bg-white/10 border border-white/30 dark:border-white/10
+          opacity-0 group-hover:opacity-100 ${selected ? 'opacity-100' : ''}
           transition-opacity cursor-se-resize
         `}
       />
