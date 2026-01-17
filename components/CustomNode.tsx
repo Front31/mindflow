@@ -52,17 +52,13 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [handleBlur, data.label]
   );
 
-  // ===== Handles =====
-  // Visible dot: small
-  const visibleHandleClass =
-    'mf-dot !w-2.5 !h-2.5 !rounded-full !border-2 !border-white/85 dark:!border-black/45 !bg-white dark:!bg-gray-900';
+  // ===== draw.io-like behavior =====
+  // BIG invisible hitbox magnets
+  const hitboxHandleClass = 'mf-hitbox !w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
 
-  // Invisible magnet: big, to make connecting easy from "anywhere"
-  const hitboxHandleClass =
-    '!w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
-
-  const accentStyle = { background: accent };
-  const visibleNoPointer = { pointerEvents: 'none' as const };
+  // Visible dots (we control them)
+  const visibleDotClass =
+    'mf-dot absolute !w-2.5 !h-2.5 rounded-full border-2 border-white/85 dark:border-black/45 bg-white dark:bg-gray-900';
 
   // Resize
   const startResize = useCallback(
@@ -136,38 +132,39 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [id, setNodes]
   );
 
-  /**
-   * "Whole border connect" approximation:
-   * Place many invisible magnet handles along each edge.
-   * Visible dots are only 4 (center of each side) and only show on hover/selected.
-   */
-  const PCTS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+  // Top/Bottom: full span
+  const TB = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+  // Left/Right: only middle half span (like draw.io)
+  const LR = [30, 40, 50, 60, 70];
 
   const MagnetHandles = () => (
     <>
-      {/* LEFT magnets (top %) */}
-      {PCTS.map((p) => (
+      {/* LEFT magnets (30-70%) */}
+      {LR.map((p) => (
         <span key={`L-${p}`}>
           <Handle id={`t-left-${p}`} type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
           <Handle id={`s-left-${p}`} type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
         </span>
       ))}
-      {/* RIGHT magnets */}
-      {PCTS.map((p) => (
+
+      {/* RIGHT magnets (30-70%) */}
+      {LR.map((p) => (
         <span key={`R-${p}`}>
           <Handle id={`t-right-${p}`} type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
           <Handle id={`s-right-${p}`} type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
         </span>
       ))}
-      {/* TOP magnets (left %) */}
-      {PCTS.map((p) => (
+
+      {/* TOP magnets (10-90%) */}
+      {TB.map((p) => (
         <span key={`T-${p}`}>
           <Handle id={`t-top-${p}`} type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
           <Handle id={`s-top-${p}`} type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
-      {/* BOTTOM magnets */}
-      {PCTS.map((p) => (
+
+      {/* BOTTOM magnets (10-90%) */}
+      {TB.map((p) => (
         <span key={`B-${p}`}>
           <Handle id={`t-bottom-${p}`} type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
           <Handle id={`s-bottom-${p}`} type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
@@ -194,43 +191,31 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      {/* ✅ CSS: dots hidden by default, shown on hover/selected */}
+      {/* ✅ Critical: Hide ALL ReactFlow handle visuals completely */}
       <style>{`
+        .react-flow__handle { opacity: 0 !important; background: transparent !important; border: 0 !important; }
         .mf-dot { opacity: 0; transition: opacity 160ms ease; }
         .group:hover .mf-dot { opacity: 1; }
-        .react-flow__node.selected .mf-dot { opacity: 1; }
       `}</style>
 
       <MagnetHandles />
 
-      {/* Visible center dots only (clean!) */}
-      <Handle
-        id="v-left"
-        type="target"
-        position={Position.Left}
-        className={visibleHandleClass}
-        style={{ ...accentStyle, top: '50%', ...visibleNoPointer }}
+      {/* Visible dots only at center of each side (clean UI) */}
+      <span
+        className={`mf-dot ${visibleDotClass}`}
+        style={{ left: '-6px', top: '50%', transform: 'translateY(-50%)', background: accent }}
       />
-      <Handle
-        id="v-right"
-        type="source"
-        position={Position.Right}
-        className={visibleHandleClass}
-        style={{ ...accentStyle, top: '50%', ...visibleNoPointer }}
+      <span
+        className={`mf-dot ${visibleDotClass}`}
+        style={{ right: '-6px', top: '50%', transform: 'translateY(-50%)', background: accent }}
       />
-      <Handle
-        id="v-top"
-        type="target"
-        position={Position.Top}
-        className={visibleHandleClass}
-        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
+      <span
+        className={`mf-dot ${visibleDotClass}`}
+        style={{ top: '-6px', left: '50%', transform: 'translateX(-50%)', background: accent }}
       />
-      <Handle
-        id="v-bottom"
-        type="source"
-        position={Position.Bottom}
-        className={visibleHandleClass}
-        style={{ ...accentStyle, left: '50%', transform: 'translateX(-50%)', ...visibleNoPointer }}
+      <span
+        className={`mf-dot ${visibleDotClass}`}
+        style={{ bottom: '-6px', left: '50%', transform: 'translateX(-50%)', background: accent }}
       />
 
       <div className="flex items-center justify-center gap-3 h-full">
