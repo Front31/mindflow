@@ -22,7 +22,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const accent = (data as any).colorHex || fallbackAccent;
   const textClass = nodeColors[(data.color ?? 'blue')].text;
 
-  const img = (data as any).imageDataUrl as string | undefined;
+  const imageDataUrl = (data as any).imageDataUrl as string | undefined;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -54,14 +54,14 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [handleBlur, data.label]
   );
 
-  // ✅ Paste image into node when editing
+  // ✅ Paste image into node if clipboard contains an image
   const handlePasteIntoNode = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const items = e.clipboardData?.items;
       if (!items) return;
 
       const imgItem = Array.from(items).find((it) => it.type.startsWith('image/'));
-      if (!imgItem) return;
+      if (!imgItem) return; // no image -> allow normal paste
 
       e.preventDefault();
 
@@ -78,8 +78,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [id, updateNode]
   );
 
-  // ===== Handles =====
-  // Invisible magnet hitbox
+  // ===== draw.io-like behavior =====
   const hitboxHandleClass =
     'mf-hitbox !w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
 
@@ -157,44 +156,98 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
   // Top/Bottom: full span
   const TB = [10, 20, 30, 40, 50, 60, 70, 80, 90];
-  // Left/Right: only middle half span
+  // Left/Right: only middle half span (like draw.io)
   const LR = [30, 40, 50, 60, 70];
 
   const MagnetHandles = () => (
     <>
-      {/* LEFT magnets */}
+      {/* LEFT (30–70%) */}
       {LR.map((p) => (
         <span key={`L-${p}`}>
-          <Handle id={`t-left-${p}`} type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
-          <Handle id={`s-left-${p}`} type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle
+            id={`t-left-${p}`}
+            type="target"
+            position={Position.Left}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`s-left-${p}`}
+            type="source"
+            position={Position.Left}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
           <span className="mf-dot mf-hover-dot" style={{ left: '-6px', top: `${p}%` }} />
         </span>
       ))}
 
-      {/* RIGHT magnets */}
+      {/* RIGHT (30–70%) */}
       {LR.map((p) => (
         <span key={`R-${p}`}>
-          <Handle id={`t-right-${p}`} type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
-          <Handle id={`s-right-${p}`} type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle
+            id={`t-right-${p}`}
+            type="target"
+            position={Position.Right}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
+          <Handle
+            id={`s-right-${p}`}
+            type="source"
+            position={Position.Right}
+            className={hitboxHandleClass}
+            style={{ top: `${p}%` }}
+          />
           <span className="mf-dot mf-hover-dot" style={{ right: '-6px', top: `${p}%` }} />
         </span>
       ))}
 
-      {/* TOP magnets */}
+      {/* TOP (10–90%) */}
       {TB.map((p) => (
         <span key={`T-${p}`}>
-          <Handle id={`t-top-${p}`} type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
-          <Handle id={`s-top-${p}`} type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
-          <span className="mf-dot mf-hover-dot" style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle
+            id={`t-top-${p}`}
+            type="target"
+            position={Position.Top}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`s-top-${p}`}
+            type="source"
+            position={Position.Top}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <span
+            className="mf-dot mf-hover-dot"
+            style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
         </span>
       ))}
 
-      {/* BOTTOM magnets */}
+      {/* BOTTOM (10–90%) */}
       {TB.map((p) => (
         <span key={`B-${p}`}>
-          <Handle id={`t-bottom-${p}`} type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
-          <Handle id={`s-bottom-${p}`} type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
-          <span className="mf-dot mf-hover-dot" style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle
+            id={`t-bottom-${p}`}
+            type="target"
+            position={Position.Bottom}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <Handle
+            id={`s-bottom-${p}`}
+            type="source"
+            position={Position.Bottom}
+            className={hitboxHandleClass}
+            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
+          <span
+            className="mf-dot mf-hover-dot"
+            style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
+          />
         </span>
       ))}
     </>
@@ -218,7 +271,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      {/* ✅ Hide ReactFlow's handle visuals (but keep them functional) */}
+      {/* Hide RF handle visuals + hover dots */}
       <style>{`
         .react-flow__handle {
           opacity: 0 !important;
@@ -235,13 +288,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           border: 2px solid rgba(255,255,255,0.9);
           opacity: 0;
           pointer-events: none;
-          transition: opacity 120ms ease;
-          transform: translateY(-50%);
-        }
-
-        /* top/bottom dots have translateX in style; remove translateY */
-        .mf-hover-dot[style*="top: -6px"], .mf-hover-dot[style*="bottom: -6px"] {
-          transform: none;
+          transition: opacity 120ms ease, transform 120ms ease;
         }
 
         .group:hover .mf-hover-dot { opacity: 1; }
@@ -250,53 +297,56 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
       <MagnetHandles />
 
-      {/* Image (if pasted) */}
-      {img && (
-        <div className="w-full mb-3">
-          <img
-            src={img}
-            alt=""
-            className="block max-w-full rounded-2xl"
-            style={{ maxHeight: 240, objectFit: 'contain' }}
-            draggable={false}
-          />
-          <button
-            className="nodrag mt-2 px-3 py-1 rounded-xl bg-black/10 dark:bg-white/10 text-xs"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              updateNode(id, { imageDataUrl: undefined });
-            }}
-          >
-            Remove image
-          </button>
-        </div>
-      )}
-
-      <div className="flex items-center justify-center gap-3 h-full">
-        {data.emoji && <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>}
-
-        {isEditing ? (
-          <textarea
-            ref={inputRef}
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePasteIntoNode}
-            rows={1}
-            className={`
-              w-full resize-none bg-transparent outline-none
-              text-base font-semibold text-center leading-snug
-              whitespace-pre-wrap break-words ${textClass}
-            `}
-            placeholder="Type your idea..."
-          />
-        ) : (
-          <div className={`w-full text-base font-semibold text-center leading-snug whitespace-pre-wrap break-words ${textClass}`}>
-            {data.label}
+      <div className="flex flex-col items-center justify-center gap-3 h-full">
+        {/* ✅ Image (if present) */}
+        {imageDataUrl && (
+          <div className="w-full">
+            <img
+              src={imageDataUrl}
+              alt=""
+              className="block max-w-full rounded-2xl"
+              style={{ maxHeight: 240, objectFit: 'contain' }}
+              draggable={false}
+            />
+            <button
+              className="nodrag mt-2 text-xs px-3 py-1 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateNode(id, { imageDataUrl: undefined });
+              }}
+              title="Remove image"
+            >
+              Remove image
+            </button>
           </div>
         )}
+
+        <div className="flex items-center justify-center gap-3 w-full">
+          {data.emoji && <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>}
+
+          {isEditing ? (
+            <textarea
+              ref={inputRef}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePasteIntoNode}
+              rows={1}
+              className={`
+                w-full resize-none bg-transparent outline-none
+                text-base font-semibold text-center leading-snug
+                whitespace-pre-wrap break-words ${textClass}
+              `}
+              placeholder="Type your idea..."
+            />
+          ) : (
+            <div className={`w-full text-base font-semibold text-center leading-snug whitespace-pre-wrap break-words ${textClass}`}>
+              {data.label}
+            </div>
+          )}
+        </div>
       </div>
 
       <button
