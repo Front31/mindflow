@@ -55,19 +55,21 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   );
 
   // ✅ Paste image into node if clipboard contains an image
-  const handlePasteIntoNode = useCallback(
+ const handlePasteIntoNode = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const items = e.clipboardData?.items;
       if (!items) return;
-
-      const imgItem = Array.from(items).find((it) => it.type.startsWith('image/'));
-      if (!imgItem) return; // no image -> allow normal paste
-
+  
+      const imgItem = Array.from(items).find((it) =>
+        it.type.startsWith('image/')
+      );
+      if (!imgItem) return;
+  
       e.preventDefault();
-
+  
       const file = imgItem.getAsFile();
       if (!file) return;
-
+  
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = String(reader.result || '');
@@ -351,7 +353,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
       <button
         onPointerDown={startResize}
-        title="Resize"
+        title="Resize"hitboxHandleClass 
         className={`
           nodrag absolute right-2 bottom-2 w-4 h-4 rounded-md
           bg-black/10 dark:bg-white/10 border border-white/30 dark:border-white/10
