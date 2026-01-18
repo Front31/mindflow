@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { Handle, NodeProps, Position } from 'reactflow';
 
 import { MindMapNode } from '@/types';
@@ -22,7 +23,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const accent = (data as any).colorHex || fallbackAccent;
   const textClass = nodeColors[(data.color ?? 'blue')].text;
 
-  const imageDataUrl = (data as any).imageDataUrl as string | undefined;
+  const imageDataUrl = data.imageDataUrl;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -61,7 +62,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
       if (!items) return;
 
       const imgItem = Array.from(items).find((it) => it.type.startsWith('image/'));
-      if (!imgItem) return; // no image -> allow normal paste
+      if (!imgItem) return; // allow normal paste
 
       e.preventDefault();
 
@@ -161,93 +162,35 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
   const MagnetHandles = () => (
     <>
-      {/* LEFT (30–70%) */}
       {LR.map((p) => (
         <span key={`L-${p}`}>
-          <Handle
-            id={`t-left-${p}`}
-            type="target"
-            position={Position.Left}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`s-left-${p}`}
-            type="source"
-            position={Position.Left}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
+          <Handle id={`t-left-${p}`} type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle id={`s-left-${p}`} type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
           <span className="mf-dot mf-hover-dot" style={{ left: '-6px', top: `${p}%` }} />
         </span>
       ))}
 
-      {/* RIGHT (30–70%) */}
       {LR.map((p) => (
         <span key={`R-${p}`}>
-          <Handle
-            id={`t-right-${p}`}
-            type="target"
-            position={Position.Right}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`s-right-${p}`}
-            type="source"
-            position={Position.Right}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
+          <Handle id={`t-right-${p}`} type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle id={`s-right-${p}`} type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
           <span className="mf-dot mf-hover-dot" style={{ right: '-6px', top: `${p}%` }} />
         </span>
       ))}
 
-      {/* TOP (10–90%) */}
       {TB.map((p) => (
         <span key={`T-${p}`}>
-          <Handle
-            id={`t-top-${p}`}
-            type="target"
-            position={Position.Top}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`s-top-${p}`}
-            type="source"
-            position={Position.Top}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <span
-            className="mf-dot mf-hover-dot"
-            style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
+          <Handle id={`t-top-${p}`} type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle id={`s-top-${p}`} type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <span className="mf-dot mf-hover-dot" style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
 
-      {/* BOTTOM (10–90%) */}
       {TB.map((p) => (
         <span key={`B-${p}`}>
-          <Handle
-            id={`t-bottom-${p}`}
-            type="target"
-            position={Position.Bottom}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`s-bottom-${p}`}
-            type="source"
-            position={Position.Bottom}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <span
-            className="mf-dot mf-hover-dot"
-            style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
+          <Handle id={`t-bottom-${p}`} type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle id={`s-bottom-${p}`} type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <span className="mf-dot mf-hover-dot" style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
     </>
@@ -271,7 +214,6 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      {/* Hide RF handle visuals + hover dots */}
       <style>{`
         .react-flow__handle {
           opacity: 0 !important;
@@ -298,16 +240,20 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
       <MagnetHandles />
 
       <div className="flex flex-col items-center justify-center gap-3 h-full">
-        {/* ✅ Image (if present) */}
+        {/* Image */}
         {imageDataUrl && (
           <div className="w-full">
-            <img
-              src={imageDataUrl}
-              alt=""
-              className="block max-w-full rounded-2xl"
-              style={{ maxHeight: 240, objectFit: 'contain' }}
-              draggable={false}
-            />
+            <div className="relative w-full" style={{ height: 220 }}>
+              <Image
+                src={imageDataUrl}
+                alt=""
+                fill
+                sizes="(max-width: 600px) 90vw, 420px"
+                style={{ objectFit: 'contain' }}
+                priority={false}
+              />
+            </div>
+
             <button
               className="nodrag mt-2 text-xs px-3 py-1 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
               onClick={(e) => {
