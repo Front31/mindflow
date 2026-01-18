@@ -22,6 +22,8 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const accent = (data as any).colorHex || fallbackAccent;
   const textClass = nodeColors[(data.color ?? 'blue')].text;
 
+  const img = (data as any).imageDataUrl as string | undefined;
+
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -52,13 +54,34 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
     [handleBlur, data.label]
   );
 
-  // ===== draw.io-like behavior =====
-  // BIG invisible hitbox magnets
-  const hitboxHandleClass = 'mf-hitbox !w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
+  // ✅ Paste image into node when editing
+  const handlePasteIntoNode = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
 
-  // Visible dots (we control them)
-  const visibleDotClass =
-    'mf-dot absolute !w-2.5 !h-2.5 rounded-full border-2 border-white/85 dark:border-black/45 bg-white dark:bg-gray-900';
+      const imgItem = Array.from(items).find((it) => it.type.startsWith('image/'));
+      if (!imgItem) return;
+
+      e.preventDefault();
+
+      const file = imgItem.getAsFile();
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        updateNode(id, { imageDataUrl: dataUrl });
+      };
+      reader.readAsDataURL(file);
+    },
+    [id, updateNode]
+  );
+
+  // ===== Handles =====
+  // Invisible magnet hitbox
+  const hitboxHandleClass =
+    'mf-hitbox !w-10 !h-10 !rounded-full !border-0 !bg-transparent !shadow-none';
 
   // Resize
   const startResize = useCallback(
@@ -134,114 +157,48 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
   // Top/Bottom: full span
   const TB = [10, 20, 30, 40, 50, 60, 70, 80, 90];
-  // Left/Right: only middle half span (like draw.io)
+  // Left/Right: only middle half span
   const LR = [30, 40, 50, 60, 70];
 
   const MagnetHandles = () => (
     <>
-      {/* LEFT (30–70%) */}
+      {/* LEFT magnets */}
       {LR.map((p) => (
         <span key={`L-${p}`}>
-          <Handle
-            id={`t-left-${p}`}
-            type="target"
-            position={Position.Left}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`s-left-${p}`}
-            type="source"
-            position={Position.Left}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-  
-          {/* 👁 sichtbarer Hover-Dot */}
-          <span
-            className="mf-dot mf-hover-dot"
-            style={{ left: '-6px', top: `${p}%` }}
-          />
+          <Handle id={`t-left-${p}`} type="target" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle id={`s-left-${p}`} type="source" position={Position.Left} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <span className="mf-dot mf-hover-dot" style={{ left: '-6px', top: `${p}%` }} />
         </span>
       ))}
-  
-      {/* RIGHT (30–70%) */}
+
+      {/* RIGHT magnets */}
       {LR.map((p) => (
         <span key={`R-${p}`}>
-          <Handle
-            id={`t-right-${p}`}
-            type="target"
-            position={Position.Right}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-          <Handle
-            id={`s-right-${p}`}
-            type="source"
-            position={Position.Right}
-            className={hitboxHandleClass}
-            style={{ top: `${p}%` }}
-          />
-  
-          <span
-            className="mf-dot mf-hover-dot"
-            style={{ right: '-6px', top: `${p}%` }}
-          />
+          <Handle id={`t-right-${p}`} type="target" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <Handle id={`s-right-${p}`} type="source" position={Position.Right} className={hitboxHandleClass} style={{ top: `${p}%` }} />
+          <span className="mf-dot mf-hover-dot" style={{ right: '-6px', top: `${p}%` }} />
         </span>
       ))}
-  
-      {/* TOP (10–90%) */}
+
+      {/* TOP magnets */}
       {TB.map((p) => (
         <span key={`T-${p}`}>
-          <Handle
-            id={`t-top-${p}`}
-            type="target"
-            position={Position.Top}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`s-top-${p}`}
-            type="source"
-            position={Position.Top}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-  
-          <span
-            className="mf-dot mf-hover-dot"
-            style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
+          <Handle id={`t-top-${p}`} type="target" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle id={`s-top-${p}`} type="source" position={Position.Top} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <span className="mf-dot mf-hover-dot" style={{ top: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
-  
-      {/* BOTTOM (10–90%) */}
+
+      {/* BOTTOM magnets */}
       {TB.map((p) => (
         <span key={`B-${p}`}>
-          <Handle
-            id={`t-bottom-${p}`}
-            type="target"
-            position={Position.Bottom}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-          <Handle
-            id={`s-bottom-${p}`}
-            type="source"
-            position={Position.Bottom}
-            className={hitboxHandleClass}
-            style={{ left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
-  
-          <span
-            className="mf-dot mf-hover-dot"
-            style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }}
-          />
+          <Handle id={`t-bottom-${p}`} type="target" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <Handle id={`s-bottom-${p}`} type="source" position={Position.Bottom} className={hitboxHandleClass} style={{ left: `${p}%`, transform: 'translateX(-50%)' }} />
+          <span className="mf-dot mf-hover-dot" style={{ bottom: '-6px', left: `${p}%`, transform: 'translateX(-50%)' }} />
         </span>
       ))}
     </>
   );
-
 
   return (
     <div
@@ -261,14 +218,14 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           : `0 18px 50px rgba(0,0,0,0.18), 0 0 0 2px ${accent}AA, 0 0 16px ${accent}22`,
       }}
     >
-      {/* ✅ Critical: Hide ALL ReactFlow handle visuals completely */}
+      {/* ✅ Hide ReactFlow's handle visuals (but keep them functional) */}
       <style>{`
         .react-flow__handle {
           opacity: 0 !important;
           background: transparent !important;
           border: 0 !important;
         }
-      
+
         .mf-hover-dot {
           position: absolute;
           width: 7px;
@@ -278,19 +235,43 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
           border: 2px solid rgba(255,255,255,0.9);
           opacity: 0;
           pointer-events: none;
-          transition: opacity 120ms ease, transform 120ms ease;
+          transition: opacity 120ms ease;
+          transform: translateY(-50%);
         }
-      
-        .group:hover .mf-hover-dot {
-          opacity: 1;
+
+        /* top/bottom dots have translateX in style; remove translateY */
+        .mf-hover-dot[style*="top: -6px"], .mf-hover-dot[style*="bottom: -6px"] {
+          transform: none;
         }
-      
-        .react-flow__node.selected .mf-hover-dot {
-          opacity: 1;
-        }
+
+        .group:hover .mf-hover-dot { opacity: 1; }
+        .react-flow__node.selected .mf-hover-dot { opacity: 1; }
       `}</style>
 
       <MagnetHandles />
+
+      {/* Image (if pasted) */}
+      {img && (
+        <div className="w-full mb-3">
+          <img
+            src={img}
+            alt=""
+            className="block max-w-full rounded-2xl"
+            style={{ maxHeight: 240, objectFit: 'contain' }}
+            draggable={false}
+          />
+          <button
+            className="nodrag mt-2 px-3 py-1 rounded-xl bg-black/10 dark:bg-white/10 text-xs"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              updateNode(id, { imageDataUrl: undefined });
+            }}
+          >
+            Remove image
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center justify-center gap-3 h-full">
         {data.emoji && <span className="text-2xl leading-none flex-shrink-0">{data.emoji}</span>}
@@ -302,6 +283,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
             onChange={(e) => setLabel(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
+            onPaste={handlePasteIntoNode}
             rows={1}
             className={`
               w-full resize-none bg-transparent outline-none
