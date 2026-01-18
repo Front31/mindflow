@@ -7,6 +7,7 @@ export interface MindMapNode extends Node {
     label: string;
     color: NodeColor;
     emoji?: string;
+    imageDataUrl?: string;
   };
 }
 
