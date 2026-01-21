@@ -304,7 +304,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         {/* ✅ Image (if present) */}
         {imageDataUrl && (
           <div className="w-full">
-            <image
+            <Image
               src={imageDataUrl}
               alt=""
               className="block max-w-full rounded-2xl"
