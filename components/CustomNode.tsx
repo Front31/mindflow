@@ -6,6 +6,7 @@ import { Handle, NodeProps, Position } from 'reactflow';
 import { MindMapNode } from '@/types';
 import { nodeColors } from '@/lib/utils';
 import { useMindFlowStore } from '@/lib/store';
+import Image from 'next/image';
 
 function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
   const [isEditing, setIsEditing] = useState(false);
@@ -303,7 +304,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
         {/* ✅ Image (if present) */}
         {imageDataUrl && (
           <div className="w-full">
-            <img
+            <image
               src={imageDataUrl}
               alt=""
               className="block max-w-full rounded-2xl"
@@ -353,7 +354,7 @@ function CustomNode({ id, data, selected }: NodeProps<MindMapNode['data']>) {
 
       <button
         onPointerDown={startResize}
-        title="Resize"hitboxHandleClass 
+        title="Resize" 
         className={`
           nodrag absolute right-2 bottom-2 w-4 h-4 rounded-md
           bg-black/10 dark:bg-white/10 border border-white/30 dark:border-white/10
