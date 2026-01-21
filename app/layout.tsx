@@ -11,6 +11,12 @@ export const metadata: Metadata = {
     description: "Beautiful, effortless collaborative mindmapping",
     type: "website",
   },
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({
