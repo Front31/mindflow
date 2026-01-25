@@ -20,6 +20,7 @@ import CustomNode from './CustomNode';
 import Toolbar, { EdgePreset } from './Toolbar';
 import ShareModal from './ShareModal';
 import { useMindFlowStore } from '@/lib/store';
+import { generateId, getRandomColor } from '@/lib/utils';
 
 const nodeTypes = { mindMapNode: CustomNode };
 
@@ -176,6 +177,7 @@ function CanvasContent({ roomId }: { roomId: string }) {
   const pasteOffsetRef = useRef(0);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const isDarkMode =
@@ -364,22 +366,20 @@ function CanvasContent({ roomId }: { roomId: string }) {
     try { await navigator.clipboard.writeText(JSON.stringify(payload)); } catch {}
   }, [nodes, edges, selectedNodeIds]);
 
-  const handlePaste = useCallback(async () => {
-    let clip: { nodes: any[]; edges: Edge[] } | null = null;
-
+  const parseClipboardSelection = useCallback((text: string | undefined) => {
+    if (!text) return null;
     try {
-      const text = await navigator.clipboard.readText();
       const json = JSON.parse(text);
       if (json?.app === 'mindflow' && json?.type === 'selection' && json?.state) {
         if (Array.isArray(json.state.nodes) && Array.isArray(json.state.edges)) {
-          clip = { nodes: json.state.nodes, edges: json.state.edges };
+          return { nodes: json.state.nodes, edges: json.state.edges } as { nodes: any[]; edges: Edge[] };
         }
       }
     } catch {}
+    return null;
+  }, []);
 
-    if (!clip) clip = clipboardRef.current;
-    if (!clip) return;
-
+  const pasteSelection = useCallback((clip: { nodes: any[]; edges: Edge[] }) => {
     pasteOffsetRef.current += 40;
     const off = pasteOffsetRef.current;
 
@@ -408,6 +408,41 @@ function CanvasContent({ roomId }: { roomId: string }) {
     setEdges([...clearedEdges, ...newEdges]);
   }, [nodes, edges, setNodes, setEdges]);
 
+  const handlePasteSelection = useCallback(async () => {
+    let clip: { nodes: any[]; edges: Edge[] } | null = null;
+
+    try {
+      const text = await navigator.clipboard.readText();
+      clip = parseClipboardSelection(text);
+    } catch {}
+
+    if (!clip) clip = clipboardRef.current;
+    if (!clip) return;
+
+    pasteSelection(clip);
+  }, [parseClipboardSelection, pasteSelection]);
+
+  const addImageNode = useCallback((dataUrl: string) => {
+    const point = lastPointerRef.current ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const position = screenToFlowPosition(point);
+    const id = generateId();
+    const newNode = {
+      id,
+      type: 'mindMapNode',
+      position,
+      data: {
+        label: 'Image',
+        color: getRandomColor(),
+        imageDataUrl: dataUrl,
+      },
+      selected: true,
+    };
+
+    setNodes([...nodes.map((n) => ({ ...n, selected: false })), newNode]);
+    setSelectedNodeIds([id]);
+    setSelectedEdgeIds([]);
+  }, [nodes, screenToFlowPosition, setNodes, setSelectedEdgeIds, setSelectedNodeIds]);
+
   const deleteSelectedRef = useRef<() => void>(() => {});
   useEffect(() => { deleteSelectedRef.current = handleDeleteSelected; }, [handleDeleteSelected]);
 
@@ -421,13 +456,48 @@ function CanvasContent({ roomId }: { roomId: string }) {
       const ctrl = isMac ? e.metaKey : e.ctrlKey;
 
       if (ctrl && e.key.toLowerCase() === 'c') { e.preventDefault(); handleCopy(); return; }
-      if (ctrl && e.key.toLowerCase() === 'v') { e.preventDefault(); handlePaste(); return; }
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedRef.current?.(); }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleCopy, handlePaste]);
+  }, [handleCopy]);
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      const isTyping = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as any).isContentEditable);
+      if (isTyping) return;
+
+      const items = e.clipboardData?.items;
+      const imageItem = items ? Array.from(items).find((it) => it.type.startsWith('image/')) : null;
+      if (imageItem) {
+        e.preventDefault();
+        const file = imageItem.getAsFile();
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = String(reader.result || '');
+          if (dataUrl) addImageNode(dataUrl);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const text = e.clipboardData?.getData('text/plain');
+      const clip = parseClipboardSelection(text);
+      if (clip) {
+        e.preventDefault();
+        pasteSelection(clip);
+        return;
+      }
+
+      handlePasteSelection();
+    };
+
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [addImageNode, handlePasteSelection, parseClipboardSelection, pasteSelection]);
 
   const applyColorToSelected = (hex: string) => {
     const idSet = new Set(selectedNodeIds);
@@ -504,6 +574,12 @@ function CanvasContent({ roomId }: { roomId: string }) {
         elementsSelectable
         edgesFocusable
 
+        onPaneMouseMove={(e) => {
+          lastPointerRef.current = { x: e.clientX, y: e.clientY };
+        }}
+        onPaneMouseDown={(e) => {
+          lastPointerRef.current = { x: e.clientX, y: e.clientY };
+        }}
         onSelectionChange={({ nodes: selNodes, edges: selEdges }) => {
           const nextNodeIds = (selNodes ?? []).map((n) => n.id).sort();
           const nextEdgeIds = (selEdges ?? []).map((e) => e.id).sort();
